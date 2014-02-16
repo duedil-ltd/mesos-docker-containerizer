@@ -69,7 +69,7 @@ class ContainerScheduler(mesos.Scheduler):
             driver.killTask(update.task_id)
             terminal = True
         elif update.state == mesos_pb2.TASK_FINISHED:
-            print >> sys.stderr, "Container task finished"
+            print >> sys.stderr, "Container task finished successfully"
             terminal = True
         elif update.state == mesos_pb2.TASK_KILLED:
             print >> sys.stderr, "Container task killed"
