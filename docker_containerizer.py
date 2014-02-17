@@ -22,7 +22,7 @@ _BASE_DOCKER_COMMAND = "docker"
 
 
 def launch(container, args):
-    """Launch a new docker container."""
+    """Launch a new docker container, don't wait for the container to terminate."""
 
     # Read the TaskInfo from STDIN
     try:
@@ -49,6 +49,7 @@ def launch(container, args):
         command.extend(docker_arg)
 
     command.append("run")
+    command.append("-d")  # Invoke docker in daemon mode
 
     # Add any environment variables
     for env in task.command.environment.variables:
