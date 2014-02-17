@@ -3,32 +3,11 @@
 set -e
 cd $(dirname $(dirname "$0"))
 
-test ! "${MESOS_BUILD_DIR}" && \
-  echo "You must specify the MESOS_BUILD_DIR environment variable" && \
+test ! -f ./bin/environment.sh && \
+  echo "Could not load ./bin/environment.sh" && \
   exit 1
 
-DISTRIBUTE_EGG=${MESOS_BUILD_DIR}/3rdparty/distribute-0.6.26/dist/
-DISTRIBUTE_EGG+=distribute-0.6.26-py2.6.egg
-
-test ! -e ${DISTRIBUTE_EGG} && \
-  echo "${RED}Failed to find ${DISTRIBUTE_EGG}${NORMAL}" && \
-  exit 1
-
-PROTOBUF=${MESOS_BUILD_DIR}/3rdparty/libprocess/3rdparty/protobuf-2.5.0
-
-PROTOBUF_EGG=${PROTOBUF}/python/dist/
-PROTOBUF_EGG+=protobuf-2.5.0-py2.6.egg
-
-test ! -e ${PROTOBUF_EGG} && \
-  echo "${RED}Failed to find ${PROTOBUF_EGG}${NORMAL}" && \
-  exit 1
-
-MESOS_EGG=${MESOS_BUILD_DIR}/src/python/dist/
-MESOS_EGG+=mesos-0.19.0*.egg
-
-test ! -e ${MESOS_EGG} && \
-  echo "${RED}Failed to find ${MESOS_EGG}${NORMAL}" && \
-  exit 1
+source ./bin/environment.sh
 
 PYTHONPATH="${DISTRIBUTE_EGG}:`ls ${MESOS_EGG}`:${PROTOBUF_EGG}" \
   exec python docker_launcher.py "${@}"
