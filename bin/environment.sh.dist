@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 
+# MESOS_BUILD_DIR: Build directory of where mesos is compiled
 export MESOS_BUILD_DIR=""
+
+# LAUNCHER_OPTS: Any extra options to pass to the docker container launcher
+export LAUNCHER_OPTS=""
+
+# CONTAINERIZER_OPTS: Any extra options to pass to the docker containerizer
+export CONTAINERIZER_OPTS=""
+
 
 test ! "${MESOS_BUILD_DIR}" && \
   echo "You must specify the MESOS_BUILD_DIR environment variable" && \

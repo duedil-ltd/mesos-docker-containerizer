@@ -10,4 +10,4 @@ test ! -f ./bin/environment.sh && \
 source ./bin/environment.sh
 
 PYTHONPATH="${DISTRIBUTE_EGG}:`ls ${MESOS_EGG}`:${PROTOBUF_EGG}" \
-  exec python docker_launcher.py "${@}"
+  exec python docker_launcher.py "${@}" ${LAUNCHER_OPTS}
