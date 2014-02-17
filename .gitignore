@@ -1,0 +1,4 @@
+bin/environment.sh
+
+# Mac OSX
+.DS_Store
