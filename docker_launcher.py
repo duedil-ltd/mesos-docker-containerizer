@@ -142,14 +142,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="docker-launcher")
     parser.add_argument("-m", "--master", required=True, type=str,
                         help="IP/Port of mesos master")
-    parser.add_argument("-i", "--image", required=True,
-                        help="Docker image to launch the container")
     parser.add_argument("-d", "--docker_arguments", required=False,
                         help="Custom arguments to pass to docker")
     parser.add_argument("--cpu", type=float, default=1.0,
                         help="CPU Requirement")
     parser.add_argument("--mem", type=int, default=1.0,
                         help="Memory requirement (Megabytes)")
+
+    # Positional arguments
+    parser.add_argument("image",
+                        help="Docker image to launch the container")
     parser.add_argument("invoke", nargs="*",
                         help="Command line invocation for the container")
 
