@@ -17,9 +17,8 @@ import sys
 import google
 import mesos_pb2
 
-
 # Base docker command
-_DOCKER_BASE_COMMAND = ["docker", "-H", "192.168.4.2:7070"]
+_BASE_DOCKER_COMMAND = "docker"
 
 
 def launch(container, args):
@@ -44,7 +43,11 @@ def launch(container, args):
 
     # Build the docker invocation
     command = [args.mesos_executor]
-    command.extend(_DOCKER_BASE_COMMAND)
+    command.append(_BASE_DOCKER_COMMAND)
+
+    for docker_arg in args.docker_arg:
+        command.extend(docker_arg)
+
     command.append("run")
 
     # Add any environment variables
@@ -90,7 +93,7 @@ def destroy(container, args):
     """Destroy a container."""
 
     # Build the docker invocation
-    command = list(_DOCKER_BASE_COMMAND)
+    command = [_BASE_DOCKER_COMMAND]
     command.extend(["kill", container])
 
     print >> sys.stderr, "Destroying container with command %r" % (command)
@@ -139,6 +142,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="docker-containerizer")
     parser.add_argument("--mesos-executor", required=False,
                         help="Path to the mesos executor")
+    parser.add_argument("--docker-arg", metavar=("option", "value"),
+                        nargs=2, action="append", default=[],
+                        help="Custom docker command to invoke")
+
+    # Positional arguments
     parser.add_argument("command",
                         help="Containerizer command to run")
     parser.add_argument("container",
