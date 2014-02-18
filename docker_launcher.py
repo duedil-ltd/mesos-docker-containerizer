@@ -21,19 +21,21 @@ class ContainerScheduler(mesos.Scheduler):
     """Mesos Scheduler implementation for launching a single docker container
     onto a mesos cluster."""
 
-    def __init__(self, image, invoke, cpu=1.0, mem=32, docker_arguments=None):
+    def __init__(self, image, invoke, cpu=1.0, mem=32,
+                 docker_arguments=None, env=[]):
 
         self.image = image
         self.invoke = invoke
         self.cpu = cpu
         self.mem = mem
         self.docker_arguments = docker_arguments
+        self.env = env
 
         self.launched = False
 
     def registered(self, driver, frameworkId, masterInfo):
 
-        print >> sys.stderr, "Registered framework"
+        print >> sys.stderr, "Registered framework %s" % (frameworkId.value)
 
     def resourceOffers(self, driver, offers):
 
@@ -95,6 +97,11 @@ class ContainerScheduler(mesos.Scheduler):
         task.command.container.image = self.image
         if self.docker_arguments:
             task.command.container.options = self.docker_arguments
+        if self.env:
+            for key, value in self.env:
+                environment = task.command.environment.variables.add()
+                environment.name = key
+                environment.value = value
 
         # Build up the resources
         cpu_resource = task.resources.add()
@@ -123,7 +130,9 @@ def main(args):
             image=args.image,
             invoke=args.invoke,
             cpu=args.cpu,
-            mem=args.mem
+            mem=args.mem,
+            docker_arguments=args.docker_arguments,
+            env=args.environment
         ),
         framework,
         args.master
@@ -148,6 +157,9 @@ if __name__ == "__main__":
                         help="CPU Requirement")
     parser.add_argument("--mem", type=int, default=1.0,
                         help="Memory requirement (Megabytes)")
+    parser.add_argument("-e", "--environment", nargs=2,
+                        action="append", default=[],
+                        help="Environment variables to pass to the container")
 
     # Positional arguments
     parser.add_argument("image",
