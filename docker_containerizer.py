@@ -19,7 +19,7 @@ import google
 import mesos_pb2
 
 # Base docker command
-_BASE_DOCKER_COMMAND = ["docker", "-H", "192.168.4.2:7070"]
+_BASE_DOCKER_COMMAND = ["docker"]
 
 
 def launch(container, args):
@@ -53,10 +53,8 @@ def launch(container, args):
         command.append(executor_path)
 
     command.extend(_BASE_DOCKER_COMMAND)
-
-    for docker_arg in args.docker_arg:
-        command.extend(docker_arg)
-
+    if args.docker_host:
+        command.extend(["-H", args.docker_host])
     command.append("run")
 
     # Add any environment variables
@@ -121,10 +119,8 @@ def destroy(container, args):
 
     # Build the docker invocation
     command = list(_BASE_DOCKER_COMMAND)
-
-    for docker_arg in args.docker_arg:
-        command.extend(docker_arg)
-
+    if args.docker_host:
+        command.extend(["-H", args.docker_host])
     command.extend(["kill", container])
 
     print >> sys.stderr, "Destroying container with command %r" % (command)
@@ -148,6 +144,8 @@ def wait(container, args):
 
     # Build the docker command
     command = list(_BASE_DOCKER_COMMAND)
+    if args.docker_host:
+        command.extend(["-H", args.docker_host])
     command.extend(["inspect", container])
 
     # Wait for `timeout` until the container comes up
@@ -164,6 +162,8 @@ def wait(container, args):
             print >> sys.stderr, "Waiting for docker container %s" % (container)
 
             command = list(_BASE_DOCKER_COMMAND)
+            if args.docker_host:
+                command.extend(["-H", args.docker_host])
             command.extend(["wait", container])
 
             # Wait for the container to finish
@@ -203,9 +203,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="docker-containerizer")
     parser.add_argument("--mesos-executor", required=False,
                         help="Path to the built-in mesos executor")
-    parser.add_argument("--docker-arg", metavar=("option", "value"),
-                        nargs=2, action="append", default=[],
-                        help="Custom docker command to invoke")
+    parser.add_argument("-H", "--docker-host", required=False,
+                        help="Docker host for client to connect to")
 
     # Positional arguments
     parser.add_argument("command",
