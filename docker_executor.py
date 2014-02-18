@@ -44,6 +44,8 @@ class DockerExecutor(mesos.Executor):
             # Wait for the process to exit
             return_code = proc.wait()
 
+            print >> sys.stderr, "Docker container exited with status %d" % (return_code)
+
             update = mesos_pb2.TaskStatus()
             update.task_id.value = task.task_id.value
             update.state = mesos_pb2.TASK_FINISHED
