@@ -18,8 +18,15 @@ import os
 import google
 import mesos_pb2
 
-# Base docker command
-_BASE_DOCKER_COMMAND = ["docker"]
+
+def _docker_command(args):
+    """Return a docker command including any global options based on `args`."""
+
+    command = ["docker"]
+    if args.docker_host:
+        command.extend(["-H", args.docker_host])
+
+    return command
 
 
 def launch(container, args):
@@ -49,12 +56,9 @@ def launch(container, args):
             ),
             "bin/docker-executor"
         )
-
         command.append(executor_path)
 
-    command.extend(_BASE_DOCKER_COMMAND)
-    if args.docker_host:
-        command.extend(["-H", args.docker_host])
+    command.extend(_docker_command(args))
     command.append("run")
 
     # Add any environment variables
@@ -118,9 +122,7 @@ def destroy(container, args):
     """Destroy a container."""
 
     # Build the docker invocation
-    command = list(_BASE_DOCKER_COMMAND)
-    if args.docker_host:
-        command.extend(["-H", args.docker_host])
+    command = list(_docker_command(args))
     command.extend(["kill", container])
 
     print >> sys.stderr, "Destroying container with command %r" % (command)
@@ -143,9 +145,7 @@ def wait(container, args):
     interval = 0.1
 
     # Build the docker command
-    command = list(_BASE_DOCKER_COMMAND)
-    if args.docker_host:
-        command.extend(["-H", args.docker_host])
+    command = list(_docker_command(args))
     command.extend(["inspect", container])
 
     # Wait for `timeout` until the container comes up
@@ -164,9 +164,7 @@ def wait(container, args):
 
             print >> sys.stderr, "Waiting for docker container %s" % (container)
 
-            command = list(_BASE_DOCKER_COMMAND)
-            if args.docker_host:
-                command.extend(["-H", args.docker_host])
+            command = list(_docker_command(args))
             command.extend(["wait", container])
 
             # Wait for the container to finish
