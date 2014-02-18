@@ -87,7 +87,7 @@ class ContainerScheduler(mesos.Scheduler):
 
         task = mesos_pb2.TaskInfo()
         task.name = "docker_container"
-        task.task_id.value = "main"
+        task.task_id.value = "docker"
         task.slave_id.value = offer.slave_id.value
 
         # Define the command
