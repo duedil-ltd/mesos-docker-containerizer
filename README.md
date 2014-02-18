@@ -18,8 +18,8 @@ As mentioned above, you need to apply the "pluggable containerizer" implementati
 
 #### Configuration
 
-1) Copy `./bin/environment.sh.dist` to `./bin/environment.sh`
-2) Fill in the `MESOS_BUILD_DIR` environment variable in `./bin/environment.sh`
+1. Copy `./bin/environment.sh.dist` to `./bin/environment.sh`
+2. Fill in the `MESOS_BUILD_DIR` environment variable in `./bin/environment.sh`
 
 
 ##### Master
