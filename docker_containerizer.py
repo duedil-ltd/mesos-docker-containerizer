@@ -74,7 +74,12 @@ def launch(container, args):
     ])
 
     # Set the resource configuration
-    # TODO
+    for resource in task.resources:
+        if resource.name == "cpus":
+            command.extend(["-c", str(int(resource.scalar.value * 256))])
+        if resource.name == "mem":
+            command.extend(["-m", "%dm" % (int(resource.scalar.value))])
+        # TODO: Handle port configurations
 
     # Figure out what command to execute in the container
     # TODO: Test with executors that are fetched from a remote
