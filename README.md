@@ -1,32 +1,60 @@
 ## Docker Containerizer for Mesos
 
-This repo contains a proof of concept external containerizer for Mesos. There are two components;
+This is an implementation of a Pluggable Containerizer for [Apache Mesos](http://mesos.apache.org/), that allows launching containers through Docker instead of standard unix processes or cgroups. 
 
-- The docker containerizer script itself
-- A test framework for launching one-time throw away docker containers on a Mesos cluster
+##### How does this compare to [mesosphere/mesos-docker](https://github.com/mesosphere/mesos-docker)? 
 
-**Note: As of now, this requires mesos to be compiled from source with [RR(17567)](https://reviews.apache.org/r/17567/) applied to master.**
-**Note: You also need to manually hard code `MESOS_BUILD_DIR` into `bin/docker-containerizer` for now as it's not passed through by mesos.**
+The mesosphere implementation of docker is aimed largely at being used with [mesosphere/marathon](https://github.com/mesosphere/marathon) which is a framework for long-running processes on mesos. It requires the framework to have a much more explicit knowledge of the existence of docker, whereas the new "pluggable containerizer" feature of mesos allows the framework to be container agnostic.
 
-### Containerizer
+For more details on the benefits of external/pluggable containerizers read over the review request linked above.
 
-Docs to come.
+*Note: The "pluggable containerizer" feature of mesos is still in development, to use this you need to apply the review request [r17567](https://reviews.apache.org/r/17567/) to the latest master, and recompile.*
 
-### Launcher
 
-The launcher connects to a mesos cluster configured to use the `bin/docker-containerizer` external containerizer.
+### Getting Started
 
-```sh
-$ MESOS_BUILD_DIR="/path/to/mesos/build" bin/launch-container -m "192.168.4.1:5050" -i ubuntu/ubuntu sleep 1
-> I0216 09:08:18.470973 2040767248 sched.cpp:121] Version: 0.19.0
-> I0216 09:08:18.472090 187219968 sched.cpp:217] New master detected at master@192.168.4.1:5050
-> I0216 09:08:18.472190 187219968 sched.cpp:225] No credentials provided. Attempting to register without authentication
-> I0216 09:08:18.472769 152768512 sched.cpp:391] Framework registered with 2014-02-16-08:51:32-17082560-5050-2432-0006
-> Registered framework
-> Offered resources
-> Launching task
-> Received task status update
-> Received task status update
-> Container task finished successfully
-> I0216 09:08:20.686316 151695360 sched.cpp:730] Stopping framework '2014-02-16-08:51:32-17082560-5050-2432-0006'
+As mentioned above, you need to apply the "pluggable containerizer" implementation to the latest master of mesos before being able to use this. Once done so, start a mesos master and slave like below.
+
+
+#### Configuration
+
+1) Copy `./bin/environment.sh.dist` to `./bin/environment.sh`
+2) Fill in the `MESOS_BUILD_DIR` environment variable in `./bin/environment.sh`
+
+
+##### Master
+
+First, launch a mesos master.
+
+
+```shell
+$ ./bin/mesos-master.sh --ip=127.0.0.1
+...
 ```
+
+
+##### Mesos Slave(s)
+
+At the moment, you must specify the default external containerizer when launching the slave. This is to be improved such that a single slave is capable of running multiple types of containers.
+
+
+```shell
+$ ./bin/mesos-slave.sh --master=127.0.0.1:5050 \
+                       --isolation="external" \
+                       --containerizer_path="/path/to/this/repo/bin/docker-containerizer"
+```
+
+With the above slave, any tasks that are sent to the slave *must* contain container information otherwise they will be unable to run.
+
+
+##### Launching a docker container
+
+If you're not writing your own framework and just want to test this out, or simply need to launch one-off containers on a mesos cluster, included here is an implementation of a mesos framework just for that.
+
+```shell
+$ ./bin/launch-container --master=127.0.0.1:5050 \
+                         ubuntu:13.10 \
+                         "echo before && sleep 5 && echo after"
+```
+
+This will pull and launch a docker container for `ubuntu:13.10` and run the bash commands given. The output from the container isn't written to the terminal, but can be retrieved through viewing the task's sandbox is the mesos web UI.
