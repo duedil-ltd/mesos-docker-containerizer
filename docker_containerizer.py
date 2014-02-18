@@ -153,8 +153,11 @@ def wait(container, args):
 
         print >> sys.stderr, "Checking status of docker container %s" % (container)
 
-        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return_code = proc.wait()
+        # Write the container info out to the sandbox, for lols
+        sandbox_dir = os.environ["MESOS_DIRECTORY"]
+        with open(os.path.join(sandbox_dir, "container"), "w") as out:
+            proc = subprocess.Popen(command, stdout=out, stderr=subprocess.PIPE)
+            return_code = proc.wait()
 
         # If the container is up, wait for it to finish
         if return_code == 0:
