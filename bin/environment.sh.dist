@@ -9,6 +9,9 @@ export LAUNCHER_OPTS=""
 # CONTAINERIZER_OPTS: Any extra options to pass to the docker containerizer
 export CONTAINERIZER_OPTS=""
 
+# EXECUTOR_OPTS: Any extra options to pass to the docker executor
+export EXECUTOR_OPTS=""
+
 
 test ! "${MESOS_BUILD_DIR}" && \
   echo "You must specify the MESOS_BUILD_DIR environment variable" && \

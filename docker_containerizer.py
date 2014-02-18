@@ -9,16 +9,17 @@
 #  Pluggable containerizer implementation for Docker with Mesos
 #
 
-
 import subprocess
 import argparse
+import time
 import sys
+import os
 
 import google
 import mesos_pb2
 
 # Base docker command
-_BASE_DOCKER_COMMAND = "docker"
+_BASE_DOCKER_COMMAND = ["docker", "-H", "192.168.4.2:7070"]
 
 
 def launch(container, args):
@@ -37,19 +38,26 @@ def launch(container, args):
         print >> sys.stderr, "Could not deserialise external container protobuf"
         return 1
 
-    if not args.mesos_executor:
-        print >> sys.stderr, "Mesos executor is required"
-        return 1
-
     # Build the docker invocation
-    command = [args.mesos_executor]
-    command.append(_BASE_DOCKER_COMMAND)
+    command = []
+
+    # If there's no executor command, wrap the docker invoke in our own
+    if not task.executor.command.value:
+        executor_path = os.path.join(
+            os.path.dirname(
+                os.path.realpath(__file__)
+            ),
+            "bin/docker-executor"
+        )
+
+        command.append(executor_path)
+
+    command.extend(_BASE_DOCKER_COMMAND)
 
     for docker_arg in args.docker_arg:
         command.extend(docker_arg)
 
     command.append("run")
-    command.append("-d")  # Invoke docker in daemon mode
 
     # Add any environment variables
     for env in task.command.environment.variables:
@@ -66,14 +74,32 @@ def launch(container, args):
     # Set the resource configuration
     # TODO
 
+    # Figure out what command to execute in the container
+    # TODO: Test with executors that are fetched from a remote
+    if task.executor.command.value:
+        container_command = task.executor.command.value
+    else:
+        container_command = task.command.value
+
     # Put together the rest of the invoke
     command.append(task.command.container.image)
-    command.extend(["/bin/sh", "-c", task.command.value])
+    command.extend(["/bin/sh", "-c", container_command])
 
     print >> sys.stderr, "Launching docker process with command %r" % (command)
 
-    proc = subprocess.Popen(command, stdout=sys.stdout, stderr=sys.stderr)
-    return proc.wait()
+    # Write the stdout/stderr of the docker container to the sandbox
+    sandbox_dir = os.environ["MESOS_DIRECTORY"]
+
+    stdout_path = os.path.join(sandbox_dir, "stdout")
+    stderr_path = os.path.join(sandbox_dir, "stderr")
+
+    with open(stdout_path, "w") as stdout:
+        with open(stderr_path, "w") as stderr:
+            proc = subprocess.Popen(command, stdout=stdout, stderr=stderr)
+            return_code = proc.wait()
+
+    print >> sys.stderr, "Docker container %s exited with return code %d" % (container, return_code)
+    return return_code
 
 
 def update(container, args):
@@ -94,12 +120,16 @@ def destroy(container, args):
     """Destroy a container."""
 
     # Build the docker invocation
-    command = [_BASE_DOCKER_COMMAND]
+    command = list(_BASE_DOCKER_COMMAND)
+
+    for docker_arg in args.docker_arg:
+        command.extend(docker_arg)
+
     command.extend(["kill", container])
 
     print >> sys.stderr, "Destroying container with command %r" % (command)
 
-    proc = subprocess.Popen(command, stdout=sys.stdout, stderr=sys.stderr)
+    proc = subprocess.Popen(command)
     return proc.wait()
 
 
@@ -111,12 +141,44 @@ def recover(container, args):
 
 
 def wait(container, args):
-    """Wait for a container to terminate."""
+    """Wait for the given container to come up."""
 
-    # We use the default implementation as the `launch` command will attach to the
-    # docker container.
-    # TODO: Check how this interacts with `recover`
-    return 0
+    timeout = 5.0
+    interval = 0.1
+
+    # Build the docker command
+    command = list(_BASE_DOCKER_COMMAND)
+    command.extend(["inspect", container])
+
+    # Wait for `timeout` until the container comes up
+    while timeout > 0.0:
+
+        print >> sys.stderr, "Checking status of docker container %s" % (container)
+
+        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return_code = proc.wait()
+
+        # If the container is up, wait for it to finish
+        if return_code == 0:
+
+            print >> sys.stderr, "Waiting for docker container %s" % (container)
+
+            command = list(_BASE_DOCKER_COMMAND)
+            command.extend(["wait", container])
+
+            # Wait for the container to finish
+            proc = subprocess.Popen(command, stdout=subprocess.PIPE)
+            proc.wait()
+
+            container_exit_code = proc.stdout.read(1)
+
+            print >> sys.stderr, "Container exited with exit code %s" % (container_exit_code)
+            return int(container_exit_code)
+
+        time.sleep(interval)
+        timeout -= interval
+
+    return 1
 
 
 def main(args):
@@ -133,8 +195,6 @@ def main(args):
         print >> sys.stderr, "Invalid command %s" % (args.command)
         exit(2)
 
-    print >> sys.stderr, "Command %r for container %r" % (args.command, args.container)
-
     return commands[args.command](args.container, args)
 
 
@@ -142,7 +202,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(prog="docker-containerizer")
     parser.add_argument("--mesos-executor", required=False,
-                        help="Path to the mesos executor")
+                        help="Path to the built-in mesos executor")
     parser.add_argument("--docker-arg", metavar=("option", "value"),
                         nargs=2, action="append", default=[],
                         help="Custom docker command to invoke")
