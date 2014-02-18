@@ -123,7 +123,7 @@ def destroy(container, args):
 
     # Build the docker invocation
     command = list(_docker_command(args))
-    command.extend(["kill", container])
+    command.extend(["stop", "-t", args.docker_stop_timeout, container])
 
     print >> sys.stderr, "Destroying container with command %r" % (command)
 
@@ -206,6 +206,8 @@ if __name__ == "__main__":
                         help="Path to the built-in mesos executor")
     parser.add_argument("-H", "--docker-host", required=False,
                         help="Docker host for client to connect to")
+    parser.add_argument("-T", "--docker-stop-timeout", default=2,
+                        help="Number of seconds to wait when stopping a container")
 
     # Positional arguments
     parser.add_argument("command",
