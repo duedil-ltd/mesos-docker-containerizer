@@ -12,7 +12,6 @@
 import subprocess
 import argparse
 import json
-import time
 import sys
 import os
 
@@ -222,55 +221,6 @@ def destroy(container, args):
     return return_code
 
 
-def wait(container, args):
-    """Wait for the given container to come up."""
-
-    timeout = 5.0
-    interval = 0.1
-
-    # Build the docker command
-    command = list(_docker_command(args))
-    command.extend(["inspect", container])
-
-    # Wait for `timeout` until the container comes up
-    while timeout > 0.0:
-
-        print >> sys.stderr, "Checking status of docker container %s" % (container)
-
-        # Write the container info out to the sandbox, for lols
-        sandbox_dir = os.environ["MESOS_DIRECTORY"]
-        with open(os.path.join(sandbox_dir, "container"), "w") as out:
-            proc = subprocess.Popen(command, stdout=out, stderr=subprocess.PIPE)
-            return_code = proc.wait()
-
-        # If the container is up, wait for it to finish
-        if return_code == 0:
-
-            print >> sys.stderr, "Waiting for docker container %s" % (container)
-
-            command = list(_docker_command(args))
-            command.extend(["wait", container])
-
-            # Wait for the container to finish
-            proc = subprocess.Popen(command, stdout=subprocess.PIPE)
-            proc.wait()
-
-            container_exit_code = int(proc.stdout.read(1))
-
-            status = mesos_pb2.PluggableTermination()
-            status.status = container_exit_code
-            status.killed = False
-            status.message = "wait/docker: ok"
-
-            print >> sys.stderr, "Container exited with exit code %d" % (container_exit_code)
-            return status
-
-        time.sleep(interval)
-        timeout -= interval
-
-    return 1
-
-
 def main(args):
 
     # Simple default function for ignoring a command
@@ -280,8 +230,8 @@ def main(args):
         "launch": launch,
         "destroy": destroy,
         "usage": usage,
-        "wait": wait,
 
+        "wait": ignore,
         "update": ignore,
         "recover": ignore,
     }
