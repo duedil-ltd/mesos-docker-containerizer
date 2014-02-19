@@ -29,6 +29,13 @@ def _docker_command(args):
     return command
 
 
+def _send_status(status):
+    """Write a PluggableStatus protobuf object to stdout."""
+
+    sys.stdout.write(status.SerializeToString())
+    sys.stdout.flush()
+
+
 def launch(container, args):
     """Launch a new docker container, don't wait for the container to terminate."""
 
@@ -103,17 +110,17 @@ def launch(container, args):
     with open(stdout_path, "w") as stdout:
         with open(stderr_path, "w") as stderr:
             proc = subprocess.Popen(command, stdout=stdout, stderr=stderr)
+
+            status = mesos_pb2.PluggableStatus()
+            status.message = "launch/docker: ok"
+
+            _send_status(status)
+            os.close(1)  # Close stdout
+
             return_code = proc.wait()
 
     print >> sys.stderr, "Docker container %s exited with return code %d" % (container, return_code)
     return return_code
-
-
-def update(container, args):
-    """Update an existing container."""
-
-    # TODO
-    return 0
 
 
 def usage(container, args):
@@ -133,14 +140,14 @@ def destroy(container, args):
     print >> sys.stderr, "Destroying container with command %r" % (command)
 
     proc = subprocess.Popen(command)
-    return proc.wait()
+    return_code = proc.wait()
 
+    if return_code == 0:
+        status = mesos_pb2.PluggableStatus()
+        status.message = "destroy/docker: ok"
+        return status
 
-def recover(container, args):
-    """Recover a container."""
-
-    # TODO
-    return 0
+    return return_code
 
 
 def wait(container, args):
@@ -176,10 +183,15 @@ def wait(container, args):
             proc = subprocess.Popen(command, stdout=subprocess.PIPE)
             proc.wait()
 
-            container_exit_code = proc.stdout.read(1)
+            container_exit_code = int(proc.stdout.read(1))
 
-            print >> sys.stderr, "Container exited with exit code %s" % (container_exit_code)
-            return int(container_exit_code)
+            status = mesos_pb2.PluggableTermination()
+            status.status = container_exit_code
+            status.killed = False
+            status.message = "wait/docker: ok"
+
+            print >> sys.stderr, "Container exited with exit code %d" % (container_exit_code)
+            return status
 
         time.sleep(interval)
         timeout -= interval
@@ -189,12 +201,17 @@ def wait(container, args):
 
 def main(args):
 
+    # Simple default function for ignoring a command
+    ignore = lambda c, a: 0
+
     commands = {
         "launch": launch,
-        "update": update,
         "destroy": destroy,
         "usage": usage,
-        "wait": wait
+        "wait": wait,
+
+        "update": ignore,
+        "recover": ignore,
     }
 
     if args.command not in commands:
@@ -220,4 +237,11 @@ if __name__ == "__main__":
     parser.add_argument("container",
                         help="Container ID")
 
-    exit(main(parser.parse_args()))
+    output = main(parser.parse_args())
+
+    # Pass protobuf responses through
+    if not isinstance(output, int):
+        _send_status(output)
+        output = 0
+
+    exit(output)
