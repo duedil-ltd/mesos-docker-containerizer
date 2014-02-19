@@ -210,7 +210,7 @@ def destroy(container, args):
 
     # Build the docker invocation
     command = list(_docker_command(args))
-    command.extend(["stop", "-t", args.docker_stop_timeout, container])
+    command.extend(["kill", container])
 
     print >> sys.stderr, "Destroying container with command %r" % (command)
 
