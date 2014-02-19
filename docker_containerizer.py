@@ -12,6 +12,7 @@
 import subprocess
 import argparse
 import json
+import time
 import sys
 import os
 
@@ -189,15 +190,19 @@ def usage(container, args):
     info = _inspect_container(container, args)
     lxc_container_id = info["ID"]
 
+    stats = mesos_pb2.ResourceStatistics()
+    stats.timestamp = int(time.time())
+
     # Retreive the CPU
-    cpu = int(_lxc_metric(lxc_container_id, "cpuacct.usage"))
+    cpu = int(_lxc_metrics(lxc_container_id, "cpuacct.usage"))
     print >> sys.stderr, "CPU Usage of container %s : %d" % (container, cpu)
 
     # Retreive the mem usage
     mem_bytes = int(_lxc_metric(lxc_container_id, "memory.usage_in_bytes"))
-    print >> sys.stderr, "Memory usage of container %s : %d" % (container, mem_bytes)
+    stats.mem_rss_bytes = mem_bytes
+    # TODO: Finish retreiving the rest of the memory metrics
 
-    return 0
+    return stats
 
 
 def destroy(container, args):
