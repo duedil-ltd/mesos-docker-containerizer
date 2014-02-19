@@ -123,7 +123,7 @@ def main(args):
 
     framework = mesos_pb2.FrameworkInfo()
     framework.user = ""  # Mesos can select the user
-    framework.name = "Docker Launcher (%s)" % (args.image)
+    framework.name = "Docker Launcher"
 
     driver = mesos.MesosSchedulerDriver(
         ContainerScheduler(
