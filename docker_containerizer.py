@@ -11,6 +11,7 @@
 
 import subprocess
 import argparse
+import json
 import time
 import sys
 import os
@@ -34,6 +35,65 @@ def _send_status(status):
 
     sys.stdout.write(status.SerializeToString())
     sys.stdout.flush()
+
+
+def _lxc_metrics(lxc_container_id, metric):
+    """A method to retreive metrics about a given linux container. Returns a
+    generator of key,value pairs for the given container metric."""
+
+    metric_keys = metric.split(".")
+    if len(metric_keys) < 2:
+        raise Exception("Invalid metric %r" % (metric))
+
+    path = os.path.join(
+        "/sys/fs/cgroup", metric_keys[0], lxc_container_id, metric
+    )
+
+    if not os.path.exists(path):
+        raise Exception("LXC metric file does not exist %r" % (path))
+
+    # Parse the individual keys out of the file
+    with open(path, "r") as f:
+        line = f.readline()
+        while line:
+            parts = line.strip().split(" ")
+
+            if len(parts) == 1:
+                yield None, parts
+            elif len(parts) == 2:
+                key, value = parts
+                yield key, value
+            else:
+                raise Exception("Unknown metric syntax %r %r" % (line, parts))
+
+
+def _lxc_metric(lxc_container_id, metric, key=None):
+    """A method to retreive a specific metric and key about a given linux
+    container."""
+
+    for metric_key, metric_value in _lxc_metrics(lxc_container_id, metric):
+        if metric_key == key:
+            return metric_value
+
+    return None
+
+
+def _inspect_container(container, args):
+
+    command = list(_docker_command(args))
+    command.extend(["inspect", container])
+
+    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return_code = proc.wait()
+
+    if return_code == 0:
+        containers = json.load(proc.stdout)
+        return containers[0]
+
+    for line in proc.stderr:
+        print >> sys.stderr, "Inspect STDERR: %s" % (line)
+
+    raise Exception("Failed to inspect container %r" % (container))
 
 
 def launch(container, args):
@@ -126,7 +186,19 @@ def launch(container, args):
 def usage(container, args):
     """Retrieve the resource usage of a given container."""
 
-    # TODO
+    # Find the lxc container ID
+    # info = _inspect_container(container, args)
+    # lxc_container_id = info["ID"]
+
+    # try:
+    # Retreive the CPU
+    # cpu = int(_lxc_metric(lxc_container_id, "cpuacct.usage"))
+    # print >> sys.stderr, "CPU Usage of container %s : %d" % (container, cpu)
+
+    #     # Retreive the mem usage
+    # mem_bytes = int(_lxc_metric(lxc_container_id, "memory.usage_in_bytes"))
+    # print >> sys.stderr, "Memory usage of container %s : %d" % (container, mem_bytes)
+
     return 0
 
 
