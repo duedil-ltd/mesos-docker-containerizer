@@ -45,7 +45,7 @@ def _lxc_metrics(lxc_container_id, metric):
         raise Exception("Invalid metric %r" % (metric))
 
     path = os.path.join(
-        "/sys/fs/cgroup", metric_keys[0], lxc_container_id, metric
+        "/sys/fs/cgroup", metric_keys[0], "lxc", lxc_container_id, metric
     )
 
     if not os.path.exists(path):
@@ -58,7 +58,7 @@ def _lxc_metrics(lxc_container_id, metric):
             parts = line.strip().split(" ")
 
             if len(parts) == 1:
-                yield None, parts
+                yield None, parts[0]
             elif len(parts) == 2:
                 key, value = parts
                 yield key, value
@@ -186,17 +186,16 @@ def usage(container, args):
     """Retrieve the resource usage of a given container."""
 
     # Find the lxc container ID
-    # info = _inspect_container(container, args)
-    # lxc_container_id = info["ID"]
+    info = _inspect_container(container, args)
+    lxc_container_id = info["ID"]
 
-    # try:
     # Retreive the CPU
-    # cpu = int(_lxc_metric(lxc_container_id, "cpuacct.usage"))
-    # print >> sys.stderr, "CPU Usage of container %s : %d" % (container, cpu)
+    cpu = int(_lxc_metric(lxc_container_id, "cpuacct.usage"))
+    print >> sys.stderr, "CPU Usage of container %s : %d" % (container, cpu)
 
-    #     # Retreive the mem usage
-    # mem_bytes = int(_lxc_metric(lxc_container_id, "memory.usage_in_bytes"))
-    # print >> sys.stderr, "Memory usage of container %s : %d" % (container, mem_bytes)
+    # Retreive the mem usage
+    mem_bytes = int(_lxc_metric(lxc_container_id, "memory.usage_in_bytes"))
+    print >> sys.stderr, "Memory usage of container %s : %d" % (container, mem_bytes)
 
     return 0
 
