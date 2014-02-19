@@ -1,0 +1,82 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Install docker
+$docker_setup = <<SCRIPT
+set -e
+
+wget -q -O - https://get.docker.io/gpg | sudo apt-key add -
+sudo bash -c "echo 'deb http://get.docker.io/ubuntu docker main' > /etc/apt/sources.list.d/docker.list"
+sudo apt-get update -q
+sudo apt-get install -q -y lxc-docker
+sudo usermod -a -G docker vagrant
+SCRIPT
+
+# Git setup
+$git_setup = <<SCRIPT
+set -e
+
+git config --global user.name "Your Name"
+git config --global user.email you@example.com
+SCRIPT
+
+# Install mesos
+$mesos_setup = <<SCRIPT
+set -e
+
+sudo apt-get install -y build-essential openjdk-6-jdk git python-dev autotools-dev libltdl-dev libtool autoconf autopoint automake libcurl4-openssl-dev libsasl2-dev
+pushd /opt
+  if [ ! -d mesos ]; then
+    git clone https://git-wip-us.apache.org/repos/asf/mesos.git
+
+    pushd mesos
+      git checkout master
+
+      # Create a new review script safe for vagrant provision
+      pushd support
+        cat apply-review.sh | sed 's/git commit --amend/#git commit --amend/g' > apply-review-no-ammend.sh
+        chmod +x apply-review-no-ammend.sh
+      popd
+
+      ./support/apply-review-no-ammend.sh 17567 # Apply the review request
+    popd
+  fi
+
+  pushd mesos
+    ./bootstrap
+    pushd build
+      ../configure
+      make
+    popd
+  popd
+
+  chown -R vagrant:vagrant mesos
+popd
+SCRIPT
+
+Vagrant.configure("2") do |config|
+
+  # Use the base ubuntu box
+  config.vm.box = "ubuntu"
+
+  # Forward the port for the mesos master web UI
+  config.vm.network :forwarded_port, guest: 5050, host: 5050
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  config.vm.network :private_network, ip: "192.168.5.2"
+
+  # Share the containerizer source into the VM
+  config.vm.synced_folder "../", "/opt/mesos-docker-containerizer"
+
+  # Configure the VM with 1024Mb of RAM and 2 CPUs
+  config.vm.provider :virtualbox do |vb|
+    vb.customize ["modifyvm", :id, "--memory", "1024"]
+    vb.customize ["modifyvm", :id, "--cpus", "2"]
+  end
+
+  # Install all the thing!
+  config.vm.provision "shell", inline: $docker_setup
+  config.vm.provision "shell", inline: $git_setup
+  config.vm.provision "shell", inline: $mesos_setup
+end
