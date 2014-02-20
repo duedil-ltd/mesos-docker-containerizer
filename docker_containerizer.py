@@ -35,7 +35,7 @@ def _send_status(status):
 
 
 def _lxc_metrics(lxc_container_id, metric):
-    """A method to retreive metrics about a given linux container. Returns a
+    """A method to retrieve metrics about a given linux container. Returns a
     generator of key,value pairs for the given container metric."""
 
     metric_keys = metric.split(".")
@@ -63,9 +63,11 @@ def _lxc_metrics(lxc_container_id, metric):
             else:
                 raise Exception("Unknown metric syntax %r %r" % (line, parts))
 
+            line = f.readline()
+
 
 def _lxc_metric(lxc_container_id, metric, key=None):
-    """A method to retreive a specific metric and key about a given linux
+    """A method to retrieve a specific metric and key about a given linux
     container."""
 
     for metric_key, metric_value in _lxc_metrics(lxc_container_id, metric):
@@ -183,6 +185,8 @@ def launch(container, args):
 def usage(container, args):
     """Retrieve the resource usage of a given container."""
 
+    print >> sys.stderr, "Retrieving usage for container %s" % (container)
+
     # Find the lxc container ID
     info = _inspect_container(container, args)
     lxc_container_id = info["ID"]
@@ -190,14 +194,39 @@ def usage(container, args):
     stats = mesos_pb2.ResourceStatistics()
     stats.timestamp = int(time.time())
 
-    # Retreive the CPU
-    cpu = int(_lxc_metrics(lxc_container_id, "cpuacct.usage"))
-    print >> sys.stderr, "CPU Usage of container %s : %d" % (container, cpu)
+    # Get the number of CPU ticks
+    ticks = os.sysconf("SC_CLK_TCK")
+    if not ticks > 0:
+        raise Exception("Unable to retrieve number of clock ticks")
 
-    # Retreive the mem usage
-    mem_bytes = int(_lxc_metric(lxc_container_id, "memory.usage_in_bytes"))
-    stats.mem_rss_bytes = mem_bytes
-    # TODO: Finish retreiving the rest of the memory metrics
+    # retrieve the CPU stats
+    stats.cpus_limit = float(_lxc_metric(lxc_container_id, "cpu.shares")) / 1024
+    cpu_stats = dict(list(_lxc_metrics(lxc_container_id, "cpuacct.stat")))
+    if "user" in cpu_stats and "system" in cpu_stats:
+        stats.cpus_user_time_secs = float(cpu_stats["user"]) / ticks
+        stats.cpus_system_time_secs = float(cpu_stats["system"]) / ticks
+
+    cpu_stats = dict(list(_lxc_metrics(lxc_container_id, "cpu.stat")))
+    if "nr_periods" in cpu_stats:
+        stats.cpus_nr_periods = int(cpu_stats["nr_periods"])
+    if "nr_throttled" in cpu_stats:
+        stats.cpus_nr_throttled = int(cpu_stats["nr_throttled"])
+    if "throttled_time" in cpu_stats:
+        throttled_time_nano = int(cpu_stats["throttled_time"])
+        throttled_time_secs = throttled_time_nano / 1000000000
+        stats.cpus_throttled_time_secs = throttled_time_secs
+
+    # retrieve the mem stats
+    stats.mem_limit_bytes = int(_lxc_metric(lxc_container_id, "memory.limit_in_bytes"))
+    stats.mem_rss_bytes = int(_lxc_metric(lxc_container_id, "memory.usage_in_bytes"))
+
+    mem_stats = dict(list(_lxc_metrics(lxc_container_id, "memory.stat")))
+    if "total_cache" in mem_stats:
+        stats.mem_file_bytes = int(mem_stats["total_cache"])
+    if "total_rss" in mem_stats:
+        stats.mem_anon_bytes = int(mem_stats["total_rss"])
+    if "total_mapped_file" in mem_stats:
+        stats.mem_mapped_file_bytes = int(mem_stats["total_mapped_file"])
 
     return stats
 
