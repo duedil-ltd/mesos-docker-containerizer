@@ -155,7 +155,7 @@ if __name__ == "__main__":
                         help="Custom arguments to pass to docker")
     parser.add_argument("--cpu", type=float, default=1.0,
                         help="CPU Requirement")
-    parser.add_argument("--mem", type=int, default=1.0,
+    parser.add_argument("--mem", type=int, default=256,
                         help="Memory requirement (Megabytes)")
     parser.add_argument("-e", "--environment", nargs=2,
                         action="append", default=[],

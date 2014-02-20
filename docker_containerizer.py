@@ -11,6 +11,7 @@
 
 import subprocess
 import argparse
+import json
 import time
 import sys
 import os
@@ -23,9 +24,6 @@ def _docker_command(args):
     """Return a docker command including any global options based on `args`."""
 
     command = ["docker"]
-    if args.docker_host:
-        command.extend(["-H", args.docker_host])
-
     return command
 
 
@@ -34,6 +32,67 @@ def _send_status(status):
 
     sys.stdout.write(status.SerializeToString())
     sys.stdout.flush()
+
+
+def _lxc_metrics(lxc_container_id, metric):
+    """A method to retrieve metrics about a given linux container. Returns a
+    generator of key,value pairs for the given container metric."""
+
+    metric_keys = metric.split(".")
+    if len(metric_keys) < 2:
+        raise Exception("Invalid metric %r" % (metric))
+
+    path = os.path.join(
+        "/sys/fs/cgroup", metric_keys[0], "lxc", lxc_container_id, metric
+    )
+
+    if not os.path.exists(path):
+        raise Exception("LXC metric file does not exist %r" % (path))
+
+    # Parse the individual keys out of the file
+    with open(path, "r") as f:
+        line = f.readline()
+        while line:
+            parts = line.strip().split(" ")
+
+            if len(parts) == 1:
+                yield None, parts[0]
+            elif len(parts) == 2:
+                key, value = parts
+                yield key, value
+            else:
+                raise Exception("Unknown metric syntax %r %r" % (line, parts))
+
+            line = f.readline()
+
+
+def _lxc_metric(lxc_container_id, metric, key=None):
+    """A method to retrieve a specific metric and key about a given linux
+    container."""
+
+    for metric_key, metric_value in _lxc_metrics(lxc_container_id, metric):
+        if metric_key == key:
+            return metric_value
+
+    return None
+
+
+def _inspect_container(container, args):
+
+    command = list(_docker_command(args))
+    command.extend(["inspect", container])
+
+    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return_code = proc.wait()
+
+    if return_code == 0:
+        containers = json.load(proc.stdout)
+        return containers[0]
+
+    for line in proc.stderr:
+        print >> sys.stderr, "Inspect STDERR: %s" % (line)
+
+    raise Exception("Failed to inspect container %r" % (container))
 
 
 def launch(container, args):
@@ -126,8 +185,50 @@ def launch(container, args):
 def usage(container, args):
     """Retrieve the resource usage of a given container."""
 
-    # TODO
-    return 0
+    print >> sys.stderr, "Retrieving usage for container %s" % (container)
+
+    # Find the lxc container ID
+    info = _inspect_container(container, args)
+    lxc_container_id = info["ID"]
+
+    stats = mesos_pb2.ResourceStatistics()
+    stats.timestamp = int(time.time())
+
+    # Get the number of CPU ticks
+    ticks = os.sysconf("SC_CLK_TCK")
+    if not ticks > 0:
+        raise Exception("Unable to retrieve number of clock ticks")
+
+    # retrieve the CPU stats
+    stats.cpus_limit = float(_lxc_metric(lxc_container_id, "cpu.shares")) / 1024
+    cpu_stats = dict(list(_lxc_metrics(lxc_container_id, "cpuacct.stat")))
+    if "user" in cpu_stats and "system" in cpu_stats:
+        stats.cpus_user_time_secs = float(cpu_stats["user"]) / ticks
+        stats.cpus_system_time_secs = float(cpu_stats["system"]) / ticks
+
+    cpu_stats = dict(list(_lxc_metrics(lxc_container_id, "cpu.stat")))
+    if "nr_periods" in cpu_stats:
+        stats.cpus_nr_periods = int(cpu_stats["nr_periods"])
+    if "nr_throttled" in cpu_stats:
+        stats.cpus_nr_throttled = int(cpu_stats["nr_throttled"])
+    if "throttled_time" in cpu_stats:
+        throttled_time_nano = int(cpu_stats["throttled_time"])
+        throttled_time_secs = throttled_time_nano / 1000000000
+        stats.cpus_throttled_time_secs = throttled_time_secs
+
+    # retrieve the mem stats
+    stats.mem_limit_bytes = int(_lxc_metric(lxc_container_id, "memory.limit_in_bytes"))
+    stats.mem_rss_bytes = int(_lxc_metric(lxc_container_id, "memory.usage_in_bytes"))
+
+    mem_stats = dict(list(_lxc_metrics(lxc_container_id, "memory.stat")))
+    if "total_cache" in mem_stats:
+        stats.mem_file_bytes = int(mem_stats["total_cache"])
+    if "total_rss" in mem_stats:
+        stats.mem_anon_bytes = int(mem_stats["total_rss"])
+    if "total_mapped_file" in mem_stats:
+        stats.mem_mapped_file_bytes = int(mem_stats["total_mapped_file"])
+
+    return stats
 
 
 def destroy(container, args):
@@ -135,7 +236,7 @@ def destroy(container, args):
 
     # Build the docker invocation
     command = list(_docker_command(args))
-    command.extend(["stop", "-t", args.docker_stop_timeout, container])
+    command.extend(["kill", container])
 
     print >> sys.stderr, "Destroying container with command %r" % (command)
 
@@ -150,55 +251,6 @@ def destroy(container, args):
     return return_code
 
 
-def wait(container, args):
-    """Wait for the given container to come up."""
-
-    timeout = 5.0
-    interval = 0.1
-
-    # Build the docker command
-    command = list(_docker_command(args))
-    command.extend(["inspect", container])
-
-    # Wait for `timeout` until the container comes up
-    while timeout > 0.0:
-
-        print >> sys.stderr, "Checking status of docker container %s" % (container)
-
-        # Write the container info out to the sandbox, for lols
-        sandbox_dir = os.environ["MESOS_DIRECTORY"]
-        with open(os.path.join(sandbox_dir, "container"), "w") as out:
-            proc = subprocess.Popen(command, stdout=out, stderr=subprocess.PIPE)
-            return_code = proc.wait()
-
-        # If the container is up, wait for it to finish
-        if return_code == 0:
-
-            print >> sys.stderr, "Waiting for docker container %s" % (container)
-
-            command = list(_docker_command(args))
-            command.extend(["wait", container])
-
-            # Wait for the container to finish
-            proc = subprocess.Popen(command, stdout=subprocess.PIPE)
-            proc.wait()
-
-            container_exit_code = int(proc.stdout.read(1))
-
-            status = mesos_pb2.PluggableTermination()
-            status.status = container_exit_code
-            status.killed = False
-            status.message = "wait/docker: ok"
-
-            print >> sys.stderr, "Container exited with exit code %d" % (container_exit_code)
-            return status
-
-        time.sleep(interval)
-        timeout -= interval
-
-    return 1
-
-
 def main(args):
 
     # Simple default function for ignoring a command
@@ -208,8 +260,8 @@ def main(args):
         "launch": launch,
         "destroy": destroy,
         "usage": usage,
-        "wait": wait,
 
+        "wait": ignore,
         "update": ignore,
         "recover": ignore,
     }
@@ -226,8 +278,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="docker-containerizer")
     parser.add_argument("--mesos-executor", required=False,
                         help="Path to the built-in mesos executor")
-    parser.add_argument("-H", "--docker-host", required=False,
-                        help="Docker host for client to connect to")
     parser.add_argument("-T", "--docker-stop-timeout", default=2,
                         help="Number of seconds to wait when stopping a container")
 
