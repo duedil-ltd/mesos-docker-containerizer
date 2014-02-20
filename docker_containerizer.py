@@ -201,12 +201,12 @@ def usage(container, args):
 
     # retrieve the CPU stats
     stats.cpus_limit = float(_lxc_metric(lxc_container_id, "cpu.shares")) / 1024
-    cpu_stats = dict(list(_lxc_metrics(lxc_container_id, "cpuacct.stat")))
+    cpu_stats = dict(_lxc_metrics(lxc_container_id, "cpuacct.stat"))
     if "user" in cpu_stats and "system" in cpu_stats:
         stats.cpus_user_time_secs = float(cpu_stats["user"]) / ticks
         stats.cpus_system_time_secs = float(cpu_stats["system"]) / ticks
 
-    cpu_stats = dict(list(_lxc_metrics(lxc_container_id, "cpu.stat")))
+    cpu_stats = dict(_lxc_metrics(lxc_container_id, "cpu.stat"))
     if "nr_periods" in cpu_stats:
         stats.cpus_nr_periods = int(cpu_stats["nr_periods"])
     if "nr_throttled" in cpu_stats:
@@ -220,7 +220,7 @@ def usage(container, args):
     stats.mem_limit_bytes = int(_lxc_metric(lxc_container_id, "memory.limit_in_bytes"))
     stats.mem_rss_bytes = int(_lxc_metric(lxc_container_id, "memory.usage_in_bytes"))
 
-    mem_stats = dict(list(_lxc_metrics(lxc_container_id, "memory.stat")))
+    mem_stats = dict(_lxc_metrics(lxc_container_id, "memory.stat"))
     if "total_cache" in mem_stats:
         stats.mem_file_bytes = int(mem_stats["total_cache"])
     if "total_rss" in mem_stats:
