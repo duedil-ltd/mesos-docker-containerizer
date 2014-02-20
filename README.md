@@ -65,3 +65,14 @@ This will pull and launch a docker container for `ubuntu:13.10` and run the bash
 If you need to run something a little more advanced than a simple bash command (such as modifying an existing framework+executor to run in a docker container) the docker containerizer does support custom executors.
 
 When a custom executor command is provided with the `TaskInfo` object, the executor will be launched *within* the docker container. This means your container image needs to have the correct version of mesos and your executor already installed.
+
+
+### Vagrant Example
+
+The `./example` folder contains a `Vagrantfile` that launches a vagrant VM ready and waiting for testing the containerizer.
+
+- Installs docker
+- Downloads and compiles mesos (with the review request patch included) into `/opt/mesos`
+- Includes the containerizer code into `/opt/mesos-docker-containerizer`
+
+The VM doesn't launch a running mesos master or slave, you'll need to log in via `vagrant ssh` and use the `/opt/mesos/build/bin/*` tools to do that yourself.
