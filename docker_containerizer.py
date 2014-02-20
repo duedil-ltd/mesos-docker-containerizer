@@ -199,7 +199,7 @@ def usage(container, args):
     if not ticks > 0:
         raise Exception("Unable to retrieve number of clock ticks")
 
-    # retrieve the CPU stats
+    # Retrieve the CPU stats
     stats.cpus_limit = float(_lxc_metric(lxc_container_id, "cpu.shares")) / 1024
     cpu_stats = dict(_lxc_metrics(lxc_container_id, "cpuacct.stat"))
     if "user" in cpu_stats and "system" in cpu_stats:
@@ -216,7 +216,7 @@ def usage(container, args):
         throttled_time_secs = throttled_time_nano / 1000000000
         stats.cpus_throttled_time_secs = throttled_time_secs
 
-    # retrieve the mem stats
+    # Retrieve the mem stats
     stats.mem_limit_bytes = int(_lxc_metric(lxc_container_id, "memory.limit_in_bytes"))
     stats.mem_rss_bytes = int(_lxc_metric(lxc_container_id, "memory.usage_in_bytes"))
 
