@@ -24,9 +24,6 @@ def _docker_command(args):
     """Return a docker command including any global options based on `args`."""
 
     command = ["docker"]
-    if args.docker_host:
-        command.extend(["-H", args.docker_host])
-
     return command
 
 
@@ -252,8 +249,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="docker-containerizer")
     parser.add_argument("--mesos-executor", required=False,
                         help="Path to the built-in mesos executor")
-    parser.add_argument("-H", "--docker-host", required=False,
-                        help="Docker host for client to connect to")
     parser.add_argument("-T", "--docker-stop-timeout", default=2,
                         help="Number of seconds to wait when stopping a container")
 
