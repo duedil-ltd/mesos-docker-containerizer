@@ -16,6 +16,8 @@ import time
 import sys
 import os
 
+from urlparse import urlparse
+
 import google
 import mesos_pb2
 
@@ -95,6 +97,57 @@ def _inspect_container(container, args):
     raise Exception("Failed to inspect container %r" % (container))
 
 
+def _download_hadoop_uri(uri, dest):
+
+    raise NotImplementedError
+
+
+def _download_s3_uri(uri, dest):
+
+    raise NotImplementedError
+
+
+def _download_http_uri(uri, dest):
+
+    raise NotImplementedError
+
+
+def _download_uri(sandbox, uri):
+    """Download the given URI to the task sandbox directory."""
+
+    downloaders = {
+        "s3n": _download_hadoop_uri,
+        "hdfs": _download_hadoop_uri,
+        "s3": _download_s3_uri,
+        "http": _download_http_uri,
+        "https": _download_http_uri,
+    }
+
+    parsed_uri = urlparse(uri)
+
+    if not len(parsed_uri.scheme):
+        return uri  # Ignore local paths
+
+    print >> sys.stderr, "Download URI %r" % (uri)
+
+    basename = os.path.basename(parsed_uri.path)
+    if parsed_uri.fragment:
+        basename = parsed_uri.fragment
+    local_path = os.path.join(sandbox, basename)
+
+    # Create the direcotry if needed
+    directory = os.path.dirname(local_path)
+    if not os.path.isdir(directory):
+        os.makedirs(directory)
+
+    if parsed_uri.scheme not in downloaders:
+        raise Exception("Unknown URI scheme %s" % (uri))
+
+    downloaders[parsed_uri.scheme](parsed_uri, local_path)
+
+    return local_path
+
+
 def launch(container, args):
     """Launch a new docker container, don't wait for the container to terminate."""
 
@@ -110,6 +163,17 @@ def launch(container, args):
     except google.protobuf.message.DecodeError:
         print >> sys.stderr, "Could not deserialise external container protobuf"
         return 1
+
+    # Grab the task sandbox directory
+    sandbox_dir = os.environ["MESOS_DIRECTORY"]
+
+    # Download any URIs into the sandbox directory
+    for uri in task.executor.command.uris:
+        local_path = _download_uri(sandbox_dir, uri.value)
+
+        # Make the file executable
+        if uri.executable:
+            os.chmod(local_path, 744)  # rwx-r--r--
 
     # Build the docker invocation
     command = []
@@ -161,8 +225,6 @@ def launch(container, args):
     print >> sys.stderr, "Launching docker process with command %r" % (command)
 
     # Write the stdout/stderr of the docker container to the sandbox
-    sandbox_dir = os.environ["MESOS_DIRECTORY"]
-
     stdout_path = os.path.join(sandbox_dir, "stdout")
     stderr_path = os.path.join(sandbox_dir, "stderr")
 
