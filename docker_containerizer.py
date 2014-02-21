@@ -113,8 +113,11 @@ def _download_http_uri(uri, dest):
 
 
 def _download_uri(sandbox, uri):
-    """Download the given URI to the task sandbox directory."""
+    """Download the given URI to the given sandbox directory."""
 
+    # Support for hadoop URIs (hdfs/s3n)
+    # Support for http/https
+    # Support for s3:// via boto (faster than shelling to hadoop)
     downloaders = {
         "s3n": _download_hadoop_uri,
         "hdfs": _download_hadoop_uri,
