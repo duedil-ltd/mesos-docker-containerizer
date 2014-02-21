@@ -99,6 +99,7 @@ def _inspect_container(container, args):
 
 def _download_hadoop_uri(uri, dest):
 
+    # TODO: Pull HADOOP_HOME from the environment (not yet supported in mesos)
     raise NotImplementedError
 
 
