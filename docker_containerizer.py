@@ -145,6 +145,9 @@ def _download_uri(sandbox, uri):
 
     downloaders[parsed_uri.scheme](parsed_uri, local_path)
 
+    # TODO: Handle .(t|tar)(\.[gz|xz|bz2])
+    # TODO: Handle .zip
+
     return local_path
 
 
