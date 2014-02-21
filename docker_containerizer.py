@@ -139,7 +139,7 @@ def _download_uri(sandbox, uri):
         basename = parsed_uri.fragment
     local_path = os.path.join(sandbox, basename)
 
-    # Create the direcotry if needed
+    # Create the directory if needed
     directory = os.path.dirname(local_path)
     if not os.path.isdir(directory):
         os.makedirs(directory)
@@ -172,13 +172,20 @@ def launch(container, args):
         return 1
 
     # Grab the task sandbox directory
-    sandbox_dir = os.environ["MESOS_DIRECTORY"]
+    mesos_dir = os.environ["MESOS_DIRECTORY"]
+    sandbox_dir = os.path.join(mesos_dir, "sandbox")
+
+    if not os.path.exists(sandbox_dir):
+        os.makedirs(sandbox_dir)
 
     # Download any URIs into the sandbox directory
-    for uri in task.executor.command.uris:
+    uris = task.command.uris
+    if task.executor.command.uris:
+        uris = task.executor.command.uris
+    for uri in uris:
         local_path = _download_uri(sandbox_dir, uri.value)
 
-        # Make the file executable
+        # Make the file executable
         if uri.executable:
             os.chmod(local_path, 744)  # rwx-r--r--
 
@@ -219,10 +226,19 @@ def launch(container, args):
         # TODO: Handle port configurations
 
     # Mount the sandbox into the container
-    command.extend(["-v", "%s:/mesos-sandbox" % (sandbox_dir)])
+    # Because the sandbox paths may contain colons and docker uses a colon to
+    # split the host path and the container path, we must create a temporary
+    # symlink to avoid this
+    sandbox_link = os.path.join("/tmp/docker-sandbox-%s" % (container))
+    os.symlink(sandbox_dir, sandbox_link)
 
-    # Set the working directory of the container to the sandbox dir
-    command.extend(["-w", sandbox_dir])
+    if not os.path.exists(sandbox_link):
+        raise Exception("Failed to symlink sandbox %r to %r" % (sandbox_dir, sandbox_link))
+
+    command.extend(["-v", "%s:/mesos-sandbox" % (sandbox_link)])
+
+    # Set the working directory of the container to the sandbox dir
+    command.extend(["-w", "/mesos-sandbox"])
 
     # Set the MESOS_DIRECTORY environment variable to the sandbox mount point
     command.extend(["-e", "MESOS_DIRECTORY=/mesos-sandbox"])
@@ -248,8 +264,8 @@ def launch(container, args):
     print >> sys.stderr, "Launching docker process with command %r" % (command)
 
     # Write the stdout/stderr of the docker container to the sandbox
-    stdout_path = os.path.join(sandbox_dir, "stdout")
-    stderr_path = os.path.join(sandbox_dir, "stderr")
+    stdout_path = os.path.join(mesos_dir, "stdout")
+    stderr_path = os.path.join(mesos_dir, "stderr")
 
     with open(stdout_path, "w") as stdout:
         with open(stderr_path, "w") as stderr:
@@ -332,6 +348,8 @@ def destroy(container, args):
         status = mesos_pb2.PluggableStatus()
         status.message = "destroy/docker: ok"
         return status
+
+    # TODO: Clean up any symlinks in /tmp/docker-sandbox-{container}
 
     return return_code
 
