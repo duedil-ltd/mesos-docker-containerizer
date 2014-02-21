@@ -11,6 +11,7 @@
 
 import subprocess
 import argparse
+import requests
 import json
 import time
 import sys
@@ -110,7 +111,13 @@ def _download_s3_uri(uri, dest):
 
 def _download_http_uri(uri, dest):
 
-    raise NotImplementedError
+    if os.path.exists(dest):
+        raise Exception("Destination %r already exists" % (dest))
+
+    with open(dest, "w") as output:
+        req = requests.get(uri.geturl(), stream=True)
+        for chunk in req.iter_content(chunk_size=1024):
+            output.write(chunk)
 
 
 def _download_uri(sandbox, uri):
