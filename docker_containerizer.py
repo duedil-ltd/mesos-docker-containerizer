@@ -225,9 +225,11 @@ def launch(container, args):
 
     # Pass through the rest of the mesos environment variables
     mesos_env = ["MESOS_FRAMEWORK_ID", "MESOS_EXECUTOR_ID",
-                 "MESOS_SLAVE_ID", "MESOS_CHECKPOINT"]
+                 "MESOS_SLAVE_ID", "MESOS_CHECKPOINT",
+                 "MESOS_RECOVERY_TIMEOUT"]
     for key in mesos_env:
-        command.extend(["-e", "%s=%s" % (key, os.environ[key])])
+        if key in os.environ:
+            command.extend(["-e", "%s=%s" % (key, os.environ[key])])
 
     # Figure out what command to execute in the container
     if task.executor.command.value:
