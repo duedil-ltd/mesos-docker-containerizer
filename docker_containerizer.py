@@ -194,6 +194,9 @@ def launch(container, args):
     command.extend(_docker_command(args))
     command.append("run")
 
+    # Mount the sandbox into the container
+    command.extend(["-v", "%s:/mesos-sandbox" % (sandbox_dir)])
+
     # Add any environment variables
     for env in task.command.environment.variables:
         command.extend([
