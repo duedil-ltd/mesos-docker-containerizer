@@ -94,7 +94,7 @@ class ContainerScheduler(mesos.Scheduler):
 
         # Define the command
         task.command.value = " ".join(self.invoke)
-        task.command.container.image = self.image
+        task.command.container.image = "docker:///%s" % (self.image)
         if self.docker_arguments:
             task.command.container.options = self.docker_arguments
         if self.env:

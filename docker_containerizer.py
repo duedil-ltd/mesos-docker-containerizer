@@ -155,7 +155,7 @@ def launch(container, args):
         container_command = task.command.value
 
     # Put together the rest of the invoke
-    command.append(task.command.container.image)
+    command.append(task.command.container.image.replace("docker:///", ""))
     command.extend(["/bin/sh", "-c", container_command])
 
     print >> sys.stderr, "Launching docker process with command %r" % (command)
