@@ -217,6 +217,9 @@ def launch(container, args):
     # Mount the sandbox into the container
     command.extend(["-v", "%s:/mesos-sandbox" % (sandbox_dir)])
 
+    # Set the working directory of the container to the sandbox dir
+    command.extend(["-w", sandbox_dir])
+
     # Set the MESOS_DIRECTORY environment variable to the sandbox mount point
     command.extend(["-e", "MESOS_DIRECTORY=/mesos-sandbox"])
 
