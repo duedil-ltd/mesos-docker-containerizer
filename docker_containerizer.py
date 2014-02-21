@@ -194,9 +194,6 @@ def launch(container, args):
     command.extend(_docker_command(args))
     command.append("run")
 
-    # Mount the sandbox into the container
-    command.extend(["-v", "%s:/mesos-sandbox" % (sandbox_dir)])
-
     # Add any environment variables
     for env in task.command.environment.variables:
         command.extend([
@@ -217,8 +214,19 @@ def launch(container, args):
             command.extend(["-m", "%dm" % (int(resource.scalar.value))])
         # TODO: Handle port configurations
 
+    # Mount the sandbox into the container
+    command.extend(["-v", "%s:/mesos-sandbox" % (sandbox_dir)])
+
+    # Set the MESOS_DIRECTORY environment variable to the sandbox mount point
+    command.extend(["-e", "MESOS_DIRECTORY=/mesos-sandbox"])
+
+    # Pass through the rest of the mesos environment variables
+    mesos_env = ["MESOS_FRAMEWORK_ID", "MESOS_EXECUTOR_ID",
+                 "MESOS_SLAVE_ID", "MESOS_CHECKPOINT"]
+    for key in mesos_env:
+        command.extend(["-e", "%s=%s" % (key, os.environ[key])])
+
     # Figure out what command to execute in the container
-    # TODO: Test with executors that are fetched from a remote
     if task.executor.command.value:
         container_command = task.executor.command.value
     else:
