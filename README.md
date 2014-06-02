@@ -38,6 +38,8 @@ As of version 0.19.0 a new `CommandInfo.ContainerInfo` message has been introduc
 
 Images are specified using the `docker:///` URL scheme. For example use `docker:///ubuntu:13.04` to launch the 13.04 ubuntu docker image in your container. If you're using a custom private registry, you can specify the registry URL also by using `docker://my.registry.com/foo/bar:tag`.
 
+**Note: Unless you're using one of the pure-language mesos frameworks (not released yet) you'll need to ensure the docker image you use has a recent version of Mesos installed. This is to allow running executors to gain access to the Mesos native libraries.**
+
 ```proto
 message TaskInfo {
   ...
