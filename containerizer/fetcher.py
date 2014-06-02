@@ -34,7 +34,7 @@ def fetch_uris(sandbox_directory, uris):
     proc = subprocess.Popen([fetcher_path], env={
         "MESOS_EXECUTOR_URIS": " ".join(fetcher_uris),
         "MESOS_WORK_DIRECTORY": sandbox_directory,
-        "LD_LIBRARY_PATH": os.envrion.get("LD_LIBRARY_PATH", "")
+        "LD_LIBRARY_PATH": os.environ.get("LD_LIBRARY_PATH", "")
     })
 
     return proc.wait()
