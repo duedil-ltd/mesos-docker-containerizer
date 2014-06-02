@@ -1,13 +1,27 @@
 #!/usr/bin/env bash
 
+#      _            _                                  _        _                 _
+#   __| | ___   ___| | _____ _ __       ___ ___  _ __ | |_ __ _(_)_ __   ___ _ __(_)_______ _ __
+#  / _` |/ _ \ / __| |/ / _ \ '__|____ / __/ _ \| '_ \| __/ _` | | '_ \ / _ \ '__| |_  / _ \ '__|
+# | (_| | (_) | (__|   <  __/ | |_____| (_| (_) | | | | || (_| | | | | |  __/ |  | |/ /  __/ |
+#  \__,_|\___/ \___|_|\_\___|_|        \___\___/|_| |_|\__\__,_|_|_| |_|\___|_|  |_/___\___|_|
+#
+
 set -e
 cd $(dirname $(dirname "$0"))
 
-test ! -f ./bin/environment.sh && \
-  echo "Could not load ./bin/environment.sh" && \
-  exit 1
+bin/setup
 
-source ./bin/environment.sh
+# Ensure we're inside the virtual environment
+. bin/env/bin/activate
 
-PYTHONPATH="${DISTRIBUTE_EGG}:`ls ${MESOS_EGG}`:${PROTOBUF_EGG}" \
-  exec python docker_containerizer.py "${@}" ${CONTAINERIZER_OPTS}
+# Source our configuration
+if [ -f ./bin/environment.sh ]; then
+    source ./bin/environment.sh
+else
+    source ./bin/environment.sh.dist
+fi
+
+export PYTHONPATH=$BASEDIR/..:$PYTHONPATH
+
+python -m containerizer $@

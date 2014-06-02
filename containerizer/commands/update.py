@@ -1,0 +1,66 @@
+"""
+                 _       _
+ _   _ _ __   __| | __ _| |_ ___
+| | | | '_ \ / _` |/ _` | __/ _ \
+| |_| | |_) | (_| | (_| | ||  __/
+ \__,_| .__/ \__,_|\__,_|\__\___|
+      |_|
+
+Containerizer subcommand to update a running container with new resources.
+"""
+
+import logging
+
+from containerizer import app, recv_proto, container_lock
+from containerizer.docker import invoke_docker
+from containerizer.proto import Update
+
+logger = logging.getLogger(__name__)
+
+
+@app.command()
+def update():
+    """
+    Update the resources of a running container.
+    """
+
+    update = recv_proto(Update)
+
+    with container_lock(update.container_id.value, "update"):
+
+        logger.info("Updating resources for container %s", update.container_id.value)
+
+        # Get the container ID
+        info = inspect_container(update.container_id.value)
+        lxc_container_id = info["ID"]
+
+        # Gather the resoures
+        max_mem = None
+        max_cpus = None
+
+        for resource in update.resources:
+            if resource.name == "mem":
+                max_mem = int(resource.scalar.value)
+            if resource.name == "cpus":
+                max_cpus = int(resource.scalar.value)
+            if resource.name == "ports":
+                logger.error("Unable to process an update to port configuration!")
+
+        if max_mem:
+            # Update the soft limit
+            write_metric(lxc_container_id, "memory.soft_limit_in_bytes", max_mem)
+
+            # Figure out if we can update the hard limit
+            # If we reduce the hard limit and too much memory is in use, this
+            # can invoke an OOM.
+            current_mem = int(read_metric(lxc_container_id, "memory.limit_in_bytes"))
+            if current_mem > max_mem:
+                write_metric(lxc_container_id, "memory.limit_in_bytes", max_mem)
+            else:
+                logger.info("Skipping hard memory limit, would invoke OOM")
+
+        if max_cpus:
+            shares = max_cpus * 256
+            write_metric(lxc_container_id, "cpu.shares")
+
+        logger.info("Finished processing container update")

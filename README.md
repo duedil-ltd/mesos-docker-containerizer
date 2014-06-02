@@ -1,28 +1,16 @@
 ## Docker Containerizer for Mesos
 
-This is an implementation of a Pluggable Containerizer for [Apache Mesos](http://mesos.apache.org/), that allows launching containers through Docker instead of standard unix processes or cgroups. 
+This project is an implementation of an External Containerizer for [Apache Mesos](http://mesos.apache.org/), that allows Mesos Executors/Tasks to be launched inside a Docker container. This is especially useful as a mechanism for managing system dependencies, since you no longer need to ensure all of the Mesos slaves have everything installed.
 
-##### How does this compare to [mesosphere/mesos-docker](https://github.com/mesosphere/mesos-docker)? 
-
-The mesosphere implementation of docker is aimed largely at being used with [mesosphere/marathon](https://github.com/mesosphere/marathon) which is a framework for long-running processes on mesos. It requires the framework to have a much more explicit knowledge of the existence of docker, whereas the new "pluggable containerizer" feature of mesos allows the framework to be container agnostic.
-
-For more details on the benefits of external/pluggable containerizers read over the review request linked above.
-
-*Note: The "pluggable containerizer" feature of mesos is still in development, to use this you need to apply the review request [r17567](https://reviews.apache.org/r/17567/) to the latest master, and recompile.*
-
+*Note: The External Containerizer is an unreleased feature of Mesos. To run this, mesos 0.19.0 is required.*
 
 ### Getting Started
 
-As mentioned above, you need to apply the "pluggable containerizer" implementation to the latest master of mesos before being able to use this. Once done so, start a mesos master and slave like below.
-
-
 #### Configuration
 
-1. Copy `./bin/environment.sh.dist` to `./bin/environment.sh`
-2. Fill in the `MESOS_BUILD_DIR` environment variable in `./bin/environment.sh`
+You can configure various attributes of the containerizer using environment variables. If you wish to modify these, copy `./bin/environment.sh.dist` to `./bin/environment.sh` and change the values.
 
-
-##### Master
+##### Mesos Master
 
 First, launch a mesos master.
 
@@ -32,11 +20,9 @@ $ ./bin/mesos-master.sh --ip=127.0.0.1
 ...
 ```
 
-
 ##### Mesos Slave(s)
 
-At the moment, you must specify the default external containerizer when launching the slave. This is to be improved such that a single slave is capable of running multiple types of containers.
-
+You now need to ensure the slave is configured to use `external` containerization, and give it the path to the docker containerizer.
 
 ```shell
 $ ./bin/mesos-slave.sh --master=127.0.0.1:5050 \
@@ -44,35 +30,52 @@ $ ./bin/mesos-slave.sh --master=127.0.0.1:5050 \
                        --containerizer_path="/path/to/this/repo/bin/docker-containerizer"
 ```
 
-With the above slave, any tasks that are sent to the slave *must* contain container information otherwise they will be unable to run.
-
+With the above slave, any tasks that are sent to the slave *must* contain container information otherwise they will be unable to run. You can configure a default image to allow users to submit tasks without this information, with `--default_container_image`.
 
 ##### Launching a docker container
 
-If you're not writing your own framework and just want to test this out, or simply need to launch one-off containers on a mesos cluster, included here is an implementation of a mesos framework just for that.
+As of version 0.19.0 a new `CommandInfo.ContainerInfo` message has been introduced. This message is designed to outline any attributes to pass to the containerizer when launching a task or executor, such as the docker image. If you don't specify this, the default docker image will be used.
 
-```shell
-$ ./bin/launch-container --master=127.0.0.1:5050 \
-                         ubuntu:13.10 \
-                         "echo before && sleep 5 && echo after"
+Images are specified using the `docker:///` URL scheme. For example use `docker:///ubuntu:13.04` to launch the 13.04 ubuntu docker image in your container. If you're using a custom private registry, you can specify the registry URL also by using `docker://my.registry.com/foo/bar:tag`.
+
+```proto
+message TaskInfo {
+  ...
+  optional CommandInfo command = 7;
+  ...
+}
+
+message CommandInfo {
+  ...
+  // Describes a container.
+  // Not all containerizers currently implement ContainerInfo, so it
+  // is possible that a launched task will fail due to supplying this
+  // attribute.
+  // NOTE: The containerizer API is currently in an early beta or
+  // even alpha state. Some details, like the exact semantics of an
+  // "image" or "options" are not yet hardened.
+  // TODO(tillt): Describe the exact scheme and semantics of "image"
+  // and "options".
+  message ContainerInfo {
+    // URI describing the container image name.
+    required string image = 1;
+
+    // Describes additional options passed to the containerizer.
+    repeated string options = 2;
+  }
+
+  // NOTE: MesosContainerizer does currently not support this
+  // attribute and tasks supplying a 'container' will fail.
+  optional ContainerInfo container = 4;
+  ...
+}
 ```
-
-This will pull and launch a docker container for `ubuntu:13.10` and run the bash commands given. The output from the container isn't written to the terminal, but can be retrieved through viewing the task's sandbox is the mesos web UI.
-
-
-### Custom Executors
-
-If you need to run something a little more advanced than a simple bash command (such as modifying an existing framework+executor to run in a docker container) the docker containerizer does support custom executors.
-
-When a custom executor command is provided with the `TaskInfo` object, the executor will be launched *within* the docker container. This means your container image needs to have the correct version of mesos and your executor already installed.
-
-
 ### Vagrant Example
 
 The `./example` folder contains a `Vagrantfile` that launches a vagrant VM ready and waiting for testing the containerizer.
 
 - Installs docker
-- Downloads and compiles mesos (with the review request patch included) into `/opt/mesos`
+- Downloads and compiles mesos (at the right version) into `/opt/mesos`
 - Includes the containerizer code into `/opt/mesos-docker-containerizer`
 
 The VM doesn't launch a running mesos master or slave, you'll need to log in via `vagrant ssh` and use the `/opt/mesos/build/bin/*` tools to do that yourself.

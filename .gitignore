@@ -1,4 +1,7 @@
 bin/environment.sh
+bin/env
+
+*.py[co]
 
 # Mac OSX
 .DS_Store

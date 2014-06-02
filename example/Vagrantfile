@@ -12,46 +12,21 @@ sudo apt-get install -q -y lxc-docker
 sudo usermod -a -G docker vagrant
 SCRIPT
 
-# Git setup
-$git_setup = <<SCRIPT
-set -e
-
-git config --global user.name "Your Name"
-git config --global user.email you@example.com
-SCRIPT
-
 # Install mesos
 $mesos_setup = <<SCRIPT
 set -e
 
-sudo apt-get install -y build-essential openjdk-6-jdk git python-dev autotools-dev libltdl-dev libtool autoconf autopoint automake libcurl4-openssl-dev libsasl2-dev
-pushd /opt
-  if [ ! -d mesos ]; then
-    git clone https://git-wip-us.apache.org/repos/asf/mesos.git
+sudo apt-get install -y zookeeperd default-jre python-setuptools python-protobuf curl
+curl -sSfL http://downloads.mesosphere.io/master/ubuntu/12.04/mesos_0.19.0-rc2~ubuntu12.04%2B1_amd64.deb --output /tmp/mesos.deb
+sudo dpkg -i /tmp/mesos.deb
+sudo rm /etc/init/mesos-*
+SCRIPT
 
-    pushd mesos
-      git checkout master
+# Other dependencies
+$conainerizer_deps = <<SCRIPT
+set -e
 
-      # Create a new review script safe for vagrant provision
-      pushd support
-        cat apply-review.sh | sed 's/git commit --amend/#git commit --amend/g' > apply-review-no-ammend.sh
-        chmod +x apply-review-no-ammend.sh
-      popd
-
-      ./support/apply-review-no-ammend.sh 17567 # Apply the review request
-    popd
-  fi
-
-  pushd mesos
-    ./bootstrap
-    pushd build
-      ../configure
-      make
-    popd
-  popd
-
-  chown -R vagrant:vagrant mesos
-popd
+sudo apt-get install -y htop python-virtualenv
 SCRIPT
 
 Vagrant.configure("2") do |config|
@@ -59,12 +34,9 @@ Vagrant.configure("2") do |config|
   # Use the base ubuntu box
   config.vm.box = "ubuntu"
 
-  # Forward the port for the mesos master web UI
-  config.vm.network :forwarded_port, guest: 5050, host: 5050
-
   # Create a private network, which allows host-only access to the machine
   # using a specific IP.
-  config.vm.network :private_network, ip: "192.168.5.2"
+  config.vm.network :private_network, ip: "192.168.100.2"
 
   # Share the containerizer source into the VM
   config.vm.synced_folder "../", "/opt/mesos-docker-containerizer"
@@ -75,8 +47,8 @@ Vagrant.configure("2") do |config|
     vb.customize ["modifyvm", :id, "--cpus", "2"]
   end
 
-  # Install all the thing!
+  # Install all the things!
   config.vm.provision "shell", inline: $docker_setup
-  config.vm.provision "shell", inline: $git_setup
   config.vm.provision "shell", inline: $mesos_setup
+  config.vm.provision "shell", inline: $conainerizer_deps
 end
