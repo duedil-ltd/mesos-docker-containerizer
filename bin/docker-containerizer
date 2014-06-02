@@ -24,4 +24,4 @@ fi
 
 export PYTHONPATH=$BASEDIR/..:$PYTHONPATH
 
-python -m containerizer $@
+sudo -E python -m containerizer $@
