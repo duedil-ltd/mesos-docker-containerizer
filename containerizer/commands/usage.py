@@ -47,33 +47,45 @@ def usage():
         exit(1)
 
     # Retrieve the CPU stats
-    stats.cpus_limit = float(read_metric(lxc_container_id, "cpu.shares")) / 256
-    cpu_stats = dict(read_metrics(lxc_container_id, "cpuacct.stat"))
-    if "user" in cpu_stats and "system" in cpu_stats:
-        stats.cpus_user_time_secs = float(cpu_stats["user"]) / ticks
-        stats.cpus_system_time_secs = float(cpu_stats["system"]) / ticks
+    try:
+        stats.cpus_limit = float(read_metric(lxc_container_id, "cpu.shares")) / 256
+        cpu_stats = dict(read_metrics(lxc_container_id, "cpuacct.stat"))
+        if "user" in cpu_stats and "system" in cpu_stats:
+            stats.cpus_user_time_secs = float(cpu_stats["user"]) / ticks
+            stats.cpus_system_time_secs = float(cpu_stats["system"]) / ticks
+    except:
+        logger.error("Failed to get CPU usage")
 
-    cpu_stats = dict(read_metrics(lxc_container_id, "cpu.stat"))
-    if "nr_periods" in cpu_stats:
-        stats.cpus_nr_periods = int(cpu_stats["nr_periods"])
-    if "nr_throttled" in cpu_stats:
-        stats.cpus_nr_throttled = int(cpu_stats["nr_throttled"])
-    if "throttled_time" in cpu_stats:
-        throttled_time_nano = int(cpu_stats["throttled_time"])
-        throttled_time_secs = throttled_time_nano / 1000000000
-        stats.cpus_throttled_time_secs = throttled_time_secs
+    try:
+        cpu_stats = dict(read_metrics(lxc_container_id, "cpu.stat"))
+        if "nr_periods" in cpu_stats:
+            stats.cpus_nr_periods = int(cpu_stats["nr_periods"])
+        if "nr_throttled" in cpu_stats:
+            stats.cpus_nr_throttled = int(cpu_stats["nr_throttled"])
+        if "throttled_time" in cpu_stats:
+            throttled_time_nano = int(cpu_stats["throttled_time"])
+            throttled_time_secs = throttled_time_nano / 1000000000
+            stats.cpus_throttled_time_secs = throttled_time_secs
+    except:
+        logger.error("Failed to get detailed CPU usage")
 
     # Retrieve the mem stats
-    stats.mem_limit_bytes = int(read_metric(lxc_container_id, "memory.limit_in_bytes"))
-    stats.mem_rss_bytes = int(read_metric(lxc_container_id, "memory.usage_in_bytes"))
+    try:
+        stats.mem_limit_bytes = int(read_metric(lxc_container_id, "memory.limit_in_bytes"))
+        stats.mem_rss_bytes = int(read_metric(lxc_container_id, "memory.usage_in_bytes"))
+    except:
+        logger.error("Failed to get memory usage")
 
-    mem_stats = dict(read_metrics(lxc_container_id, "memory.stat"))
-    if "total_cache" in mem_stats:
-        stats.mem_file_bytes = int(mem_stats["total_cache"])
-    if "total_rss" in mem_stats:
-        stats.mem_anon_bytes = int(mem_stats["total_rss"])
-    if "total_mapped_file" in mem_stats:
-        stats.mem_mapped_file_bytes = int(mem_stats["total_mapped_file"])
+    try:
+        mem_stats = dict(read_metrics(lxc_container_id, "memory.stat"))
+        if "total_cache" in mem_stats:
+            stats.mem_file_bytes = int(mem_stats["total_cache"])
+        if "total_rss" in mem_stats:
+            stats.mem_anon_bytes = int(mem_stats["total_rss"])
+        if "total_mapped_file" in mem_stats:
+            stats.mem_mapped_file_bytes = int(mem_stats["total_mapped_file"])
+    except:
+        logger.error("Failed to get detailed memory usage")
 
     logger.debug("Container usage: %s", stats)
 
