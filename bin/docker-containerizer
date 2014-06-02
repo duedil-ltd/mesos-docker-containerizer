@@ -13,16 +13,16 @@ cd $(dirname $(dirname "$0"))
 bin/setup
 
 # Ensure we're inside the virtual environment
-source bin/env/bin/activate
+. bin/env/bin/activate
 
 # Source our configuration
 if [ -f ./bin/environment.sh ]; then
-    source ./bin/environment.sh
+    . ./bin/environment.sh
 else
-    source ./bin/environment.sh.dist
+    . ./bin/environment.sh.dist
 fi
 
 export PYTHONPATH="`pwd`:$PYTHONPATH"
 
 # We run as sudo here because to modify cgroup properties, we must be root.
-sudo -E python -m containerizer.__main__ $@
+sudo -E LD_LIBRARY_PATH="$LD_LIBRARY_PATH" python -m containerizer.__main__ $@
