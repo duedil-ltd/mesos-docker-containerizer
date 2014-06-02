@@ -31,14 +31,14 @@ def destroy():
 
         logger.info("Ensuring container %s is killed", destroy.container_id.value)
 
-        stdout, _, return_code = invoke_docker("kill", [wait.container_id.value], stdout=PIPE)
+        stdout, _, return_code = invoke_docker("kill", [destroy.container_id.value], stdout=PIPE)
         if return_code > 0:
             logger.error("Failed to kill container, bad exit code (%d)", return_code)
             exit(1)
 
         logger.info("Removing container %s", destroy.container_id.value)
 
-        stdout, _, return_code = invoke_docker("rm", [wait.container_id.value], stdout=PIPE)
+        stdout, _, return_code = invoke_docker("rm", [destroy.container_id.value], stdout=PIPE)
         if return_code > 0:
             logger.error("Failed to remove container, bad exit code (%d)", return_code)
             exit(1)

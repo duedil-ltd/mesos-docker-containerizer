@@ -1,5 +1,8 @@
 
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def read_metrics(lxc_container_id, metric):
@@ -13,7 +16,7 @@ def read_metrics(lxc_container_id, metric):
         raise Exception("Invalid metric %r" % (metric))
 
     path = os.path.join(
-        "/sys/fs/cgroup", metric_keys[0], "lxc", lxc_container_id, metric
+        "/sys/fs/cgroup", metric_keys[0], "docker", lxc_container_id, metric
     )
 
     if not os.path.exists(path):
@@ -42,7 +45,7 @@ def read_metric(lxc_container_id, metric, key=None):
     container.
     """
 
-    for metric_key, metric_value in _lxc_metrics(lxc_container_id, metric):
+    for metric_key, metric_value in read_metrics(lxc_container_id, metric):
         if metric_key == key:
             return metric_value
 
@@ -60,10 +63,10 @@ def write_metric(lxc_container_id, metric, value):
         raise Exception("Invalid metric %r" % (metric))
 
     path = os.path.join(
-        "/sys/fs/cgroup", metric_keys[0], "lxc", lxc_container_id, metric
+        "/sys/fs/cgroup", metric_keys[0], "docker", lxc_container_id, metric
     )
 
-    previous_value = read_metric(metric)
+    previous_value = read_metric(lxc_container_id, metric)
     new_value = str(value)
 
     logger.info("Updating cgroup metric %s from %r to %r", path, previous_value, new_value)
@@ -71,6 +74,6 @@ def write_metric(lxc_container_id, metric, value):
     with open(path, "w") as f:
         f.write(new_value)
 
-    updated_value = read_metric(metric)
+    updated_value = read_metric(lxc_container_id, metric)
     if updated_value != new_value:
         raise Exception("Failed to write updated cgroup value to %s" % path)

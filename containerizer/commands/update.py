@@ -12,8 +12,9 @@ Containerizer subcommand to update a running container with new resources.
 import logging
 
 from containerizer import app, recv_proto, container_lock
-from containerizer.docker import invoke_docker
+from containerizer.docker import invoke_docker, inspect_container
 from containerizer.proto import Update
+from containerizer.cgroups import read_metric, write_metric
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +41,9 @@ def update():
 
         for resource in update.resources:
             if resource.name == "mem":
-                max_mem = int(resource.scalar.value)
+                max_mem = int(resource.scalar.value) * 1024 * 1024
             if resource.name == "cpus":
-                max_cpus = int(resource.scalar.value)
+                max_cpus = int(resource.scalar.value) * 256
             if resource.name == "ports":
                 logger.error("Unable to process an update to port configuration!")
 

@@ -15,6 +15,7 @@ from urlparse import urlparse
 from containerizer import app, recv_proto, container_lock
 from containerizer.docker import invoke_docker
 from containerizer.proto import Launch
+from containerizer.fetcher import fetch_uris
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ def launch():
 
         # Set the container ID
         arguments.extend([
-            "-name", launch.container_id.value
+            "--name", launch.container_id.value
         ])
 
         # Configure the user
@@ -49,6 +50,7 @@ def launch():
         # Figure out where the executor is
         if launch.HasField("executor_info"):
             executor = launch.executor_info.command.value
+            uris = launch.executor_info.command.uris
 
             # Environment variables
             for env in launch.executor_info.command.environment.variables:
@@ -59,6 +61,7 @@ def launch():
         else:
             logger.info("No executor given, launching with mesos-executor")
             executor = "%s/mesos-executor" % os.environ['MESOS_LIBEXEC_DIRECTORY']
+            uris = launch.task_info.command.uris
 
             # Environment variables
             for env in launch.task_info.command.environment.variables:
@@ -66,6 +69,12 @@ def launch():
                     "-e",
                     "%s=%s" % (env.name, env.value)
                 ])
+
+        # Download the URIs
+        logger.info("Fetching URIs")
+        if fetch_uris(launch.directory, uris) > 0:
+            logger.error("Mesos fetcher returned bad exit code")
+            exit(1)
 
         # Link the mesos native library
         native_library = os.environ['MESOS_NATIVE_LIBRARY']
@@ -138,7 +147,7 @@ def launch():
         run_arguments.extend(["sh", "-c"])
         run_arguments.append(executor + " >> stdout 2>>stderr")
 
-        logger.info("Launching docker container with arguments: %r", run_arguments)
+        logger.info("Launching docker container")
         _, _, return_code = invoke_docker("run", run_arguments)
 
         if return_code > 0:
