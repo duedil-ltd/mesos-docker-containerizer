@@ -1,8 +1,11 @@
 
 import os
 import json
+import logging
 import subprocess
 from subprocess import PIPE
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_uris(sandbox_directory, uris):
@@ -30,11 +33,15 @@ def fetch_uris(sandbox_directory, uris):
 
         fetcher_uris.append(uri_string)
 
+    # Pass through the LD_LIBRARY_PATH
+    library_path = os.environ.get("LD_LIBRARY_PATH", "")
+    logger.info("LD_LIBRARY_PATH: %s", library_path)
+
     fetcher_path = os.path.join(os.environ["MESOS_LIBEXEC_DIRECTORY"], "mesos-fetcher")
     proc = subprocess.Popen([fetcher_path], env={
         "MESOS_EXECUTOR_URIS": " ".join(fetcher_uris),
         "MESOS_WORK_DIRECTORY": sandbox_directory,
-        "LD_LIBRARY_PATH": os.environ.get("LD_LIBRARY_PATH", "")
+        "LD_LIBRARY_PATH": library_path
     })
 
     return proc.wait()
