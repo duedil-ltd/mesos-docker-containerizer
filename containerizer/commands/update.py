@@ -62,6 +62,6 @@ def update():
 
         if max_cpus:
             shares = max_cpus * 256
-            write_metric(lxc_container_id, "cpu.shares")
+            write_metric(lxc_container_id, "cpu.shares", shares)
 
         logger.info("Finished processing container update")
