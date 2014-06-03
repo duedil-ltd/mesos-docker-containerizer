@@ -86,8 +86,8 @@ def launch():
         ports = set()
 
         # Grab the resources from the task and executor
-        resource_sets [launch.task_info.resources,
-                       launch.executor_info.resources]
+        resource_sets = [launch.task_info.resources,
+                         launch.executor_info.resources]
         for resources in resource_sets:
             for resource in resources:
                 if resource.name == "cpus":
