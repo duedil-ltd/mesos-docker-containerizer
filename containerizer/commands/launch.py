@@ -41,6 +41,11 @@ def launch():
             "--name", launch.container_id.value
         ])
 
+        # Configure the docker network to share the hosts
+        arguments.extend([
+            "--net", "host"
+        ])
+
         # Configure the user
         if launch.HasField("user"):
             arguments.extend([
@@ -105,7 +110,7 @@ def launch():
             arguments.extend(["-m", "%dm" % max_memory])
         if len(ports) > 0:
             for port in ports:
-                arguments.extend(["-p", "%i:%i" % (port, port)])
+                arguments.extend(["-p", ":%i" % port])
 
         logger.info("Configured with executor %s" % executor)
 
