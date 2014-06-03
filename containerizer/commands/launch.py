@@ -81,15 +81,31 @@ def launch():
         arguments.extend(["-v", "%s:/usr/lib/%s" % (native_library, os.path.basename(native_library))])
 
         # Set the resource configuration
-        for resource in launch.task_info.resources:
-            if resource.name == "cpus":
-                arguments.extend(["-c", str(int(resource.scalar.value * 256))])
-            if resource.name == "mem":
-                arguments.extend(["-m", "%dm" % (int(resource.scalar.value))])
-            if resource.name == "ports":
-                for port_range in resource.ranges.range:
-                    for port in xrange(port_range.begin, port_range.end + 1):
-                        arguments.extend(["-p", "%i:%i" % (port, port)])
+        cpu_shares = 0
+        max_memory = 0
+        ports = set()
+
+        # Grab the resources from the task and executor
+        resource_sets [launch.task_info.resources,
+                       launch.executor_info.resources]
+        for resources in resource_sets:
+            for resource in resources:
+                if resource.name == "cpus":
+                    cpu_shares += int(resource.scalar.value)
+                if resource.name == "mem":
+                    max_memory += int(resource.scalar.value)
+                if resource.name == "ports":
+                    for port_range in resource.ranges.range:
+                        for port in xrange(port_range.begin, port_range.end + 1):
+                            ports.add(port)
+
+        if cpu_shares > 0:
+            arguments.extend(["-c", str(cpu_shares * 256)])
+        if max_memory > 0:
+            arguments.extend(["-m", "%dm" % max_memory])
+        if len(ports) > 0:
+            for port in ports:
+                arguments.extend(["-p", "%i:%i" % (port, port)])
 
         logger.info("Configured with executor %s" % executor)
 
