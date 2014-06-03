@@ -103,7 +103,8 @@ def launch():
         # Pass through the rest of the mesos environment variables
         mesos_env = ["MESOS_FRAMEWORK_ID", "MESOS_EXECUTOR_ID",
                      "MESOS_SLAVE_ID", "MESOS_CHECKPOINT",
-                     "MESOS_SLAVE_PID", "MESOS_RECOVERY_TIMEOUT"]
+                     "MESOS_SLAVE_PID", "MESOS_RECOVERY_TIMEOUT",
+                     "MESOS_NATIVE_LIBRARY"]
         for key in mesos_env:
             if key in os.environ:
                 arguments.extend(["-e", "%s=%s" % (key, os.environ[key])])
