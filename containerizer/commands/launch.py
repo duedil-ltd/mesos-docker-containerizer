@@ -133,7 +133,7 @@ def launch():
         # Parse the container image
         image = None
         extra_args = []
-        if launch.task_info.HasField("executor"):
+        if launch.HasField("executor_info"):
             image = launch.executor_info.command.container.image
             for option in launch.executor_info.command.container.options:
                 extra_args.append(option.split(" "))
