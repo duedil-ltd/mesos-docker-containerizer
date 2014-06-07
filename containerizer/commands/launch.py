@@ -31,7 +31,7 @@ def launch():
     # Acquire a lock for this container
     with container_lock(launch.container_id.value):
 
-        logger.info("Prepraring to launch container %s", launch.container_id.value)
+        logger.info("Preparing to launch container %s", launch.container_id.value)
 
         # Build up the docker arguments
         arguments = []
@@ -153,6 +153,13 @@ def launch():
         if url.netloc:
             image = url.netloc
         image += url.path
+
+        # Pull the image
+        logger.info("Pulling latest docker image: %s", image)
+        _, _, return_code = invoke_docker("pull", [image])
+        if return_code > 0:
+            logger.error("Failed to pull image (%d)", return_code)
+            exit(1)
 
         # TODO(tarnfeld): Locking
 
