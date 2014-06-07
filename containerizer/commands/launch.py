@@ -154,12 +154,11 @@ def launch():
             image = url.netloc
         image += url.path
 
-
         # TODO(tarnfeld): Locking
 
         run_arguments = [
-            "-d", # Enable daemon mode
-            "--net=bridge" # Bridge the network with the host
+            "-d",  # Enable daemon mode
+            "--net=bridge"  # Bridge the network with the host
         ]
 
         run_arguments.extend(arguments)
