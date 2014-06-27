@@ -25,4 +25,4 @@ fi
 export PYTHONPATH="`pwd`:$PYTHONPATH"
 
 # We run as sudo here because to modify cgroup properties, we must be root.
-sudo -E LD_LIBRARY_PATH="$LD_LIBRARY_PATH" python -m containerizer.__main__ $@
+sudo -E LD_LIBRARY_PATH="$LD_LIBRARY_PATH" bin/env/bin/python -m containerizer.__main__ $@
