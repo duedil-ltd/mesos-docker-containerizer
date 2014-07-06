@@ -33,7 +33,10 @@ def usage():
 
     # Find the lxc container ID
     info = inspect_container(usage.container_id.value)
-    lxc_container_id = info["ID"]
+    lxc_container_id = info.get("ID", info.get("Id"))
+
+    if lxc_container_id is None:
+        raise Exception("Failed to get full container ID")
 
     logger.info("Using LXC container ID %s", lxc_container_id)
 

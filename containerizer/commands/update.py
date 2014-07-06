@@ -12,7 +12,7 @@ Containerizer subcommand to update a running container with new resources.
 import logging
 
 from containerizer import app, recv_proto, container_lock
-from containerizer.docker import invoke_docker, inspect_container
+from containerizer.docker import inspect_container
 from containerizer.proto import Update
 from containerizer.cgroups import read_metric, write_metric
 
@@ -33,7 +33,10 @@ def update():
 
         # Get the container ID
         info = inspect_container(update.container_id.value)
-        lxc_container_id = info["ID"]
+        lxc_container_id = info.get("ID", info.get("Id"))
+
+        if lxc_container_id is None:
+            raise Exception("Failed to get full container ID")
 
         # Gather the resoures
         max_mem = None
