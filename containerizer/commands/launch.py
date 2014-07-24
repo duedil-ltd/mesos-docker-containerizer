@@ -169,7 +169,6 @@ def launch():
 
         run_arguments.extend(arguments)
         run_arguments.extend(extra_args)
-        run_arguments.extend(["-e", "GLOG_v=5"])
         run_arguments.append(image)
         run_arguments.extend(["sh", "-c"])
         run_arguments.append(executor + " >> stdout 2>>stderr")
