@@ -165,7 +165,6 @@ def launch():
 
         run_arguments = [
             "-d",  # Enable daemon mode
-            "--net=bridge"  # Bridge the network with the host
         ]
 
         run_arguments.extend(arguments)
