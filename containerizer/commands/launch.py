@@ -171,7 +171,7 @@ def launch():
         run_arguments.extend(extra_args)
         run_arguments.append(image)
         run_arguments.extend(["sh", "-c"])
-        run_arguments.append(executor + " >> stdout 2>>stderr")
+        run_arguments.append(executor + " >> /mesos-sandbox/docker_stdout 2>> /mesos-sandbox/docker_stderr")
 
         logger.info("Launching docker container")
         _, _, return_code = invoke_docker("run", run_arguments)
