@@ -43,7 +43,7 @@ def launch():
 
         # Configure the docker network to share the hosts
         arguments.extend([
-            "--net", "host"
+            "--net=host"
         ])
 
         # Configure the user
