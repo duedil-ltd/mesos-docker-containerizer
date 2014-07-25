@@ -136,11 +136,11 @@ def launch():
         if launch.HasField("executor_info"):
             image = launch.executor_info.command.container.image
             for option in launch.executor_info.command.container.options:
-                extra_args.append(option.split(" "))
+                extra_args.extend(option.split(" "))
         else:
             image = launch.task_info.command.container.image
             for option in launch.task_info.command.container.options:
-                extra_args.append(option.split(" "))
+                extra_args.extend(option.split(" "))
 
         if not image:
             image = os.environ["MESOS_DEFAULT_CONTAINER_IMAGE"]
