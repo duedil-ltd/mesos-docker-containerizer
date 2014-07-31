@@ -83,7 +83,7 @@ def launch():
 
         # Link the mesos native library
         native_library = os.environ['MESOS_NATIVE_LIBRARY']
-        arguments.extend(["-v", "%s:/usr/lib/%s" % (native_library, os.path.basename(native_library))])
+        arguments.extend(["-v", "%s:/usr/local/lib/%s" % (native_library, os.path.basename(native_library))])
 
         # Set the resource configuration
         cpu_shares = 0
