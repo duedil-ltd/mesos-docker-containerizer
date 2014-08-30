@@ -142,6 +142,9 @@ def launch():
             for option in launch.task_info.command.container.options:
                 extra_args.extend(option.split(" "))
 
+        # Replace any environment variables in the custom args
+        extra_args = map(lambda s: s.replace('$MESOS_DIRECTORY', launch.directory), extra_args)
+
         if not image:
             image = os.environ["MESOS_DEFAULT_CONTAINER_IMAGE"]
         if not image:
