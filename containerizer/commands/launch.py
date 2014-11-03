@@ -14,7 +14,7 @@ from urlparse import urlparse
 
 from containerizer import app, recv_proto, container_lock
 from containerizer.docker import invoke_docker
-from containerizer.proto import Launch
+from containerizer.proto import Launch, ContainerInfo, Volume
 from containerizer.fetcher import fetch_uris
 
 logger = logging.getLogger(__name__)
@@ -41,16 +41,7 @@ def launch():
             "--name", launch.container_id.value
         ])
 
-        # Configure the docker network to share the hosts
-        arguments.extend([
-            "--net=host"
-        ])
-
-        # Configure the user
-        if launch.HasField("user"):
-            arguments.extend([
-                "-u", launch.user
-            ])
+        container_info = None
 
         # Figure out where the executor is
         if launch.HasField("executor_info"):
@@ -63,6 +54,9 @@ def launch():
                     "-e",
                     "%s=%s" % (env.name, env.value)
                 ])
+
+            if launch.executor_info.HasField("container"):
+                container_info = launch.executor_info.container
         else:
             logger.info("No executor given, launching with mesos-executor")
             executor = "%s/mesos-executor" % os.environ['MESOS_LIBEXEC_DIRECTORY']
@@ -75,14 +69,34 @@ def launch():
                     "%s=%s" % (env.name, env.value)
                 ])
 
+            if launch.task_info.HasField("container"):
+                container_info = launch.task_info.container
+
+        # Pull out DockerInfo if it's there
+        docker_info = None
+        if container_info and container_info.type == ContainerInfo.Type.DOCKER:
+            docker_info = container_info.docker
+
+        # Configure the docker network to share the hosts
+        net = "host"
+        if docker_info:
+            net = ContainerInfo.DockerInfo._Network.values_by_number[docker_info.network].name
+
+        arguments.extend([
+            "--net=%s" % net.lower()
+        ])
+
+        # Configure the user
+        if launch.HasField("user"):
+            arguments.extend([
+                "-u", launch.user
+            ])
+
         # Download the URIs
         logger.info("Fetching URIs")
         if fetch_uris(launch.directory, uris) > 0:
             logger.error("Mesos fetcher returned bad exit code")
             exit(1)
-
-        # Link the mesos native library
-        native_library = os.environ['MESOS_NATIVE_LIBRARY']
 
         # Set the resource configuration
         cpu_shares = 0
@@ -113,10 +127,6 @@ def launch():
 
         logger.info("Configured with executor %s" % executor)
 
-        # Add the sandbox directory
-        arguments.extend(["-v", "%s:/mesos-sandbox" % (launch.directory)])
-        arguments.extend(["-w", "/mesos-sandbox"])
-
         # Set the MESOS_DIRECTORY environment variable to the sandbox mount point
         arguments.extend(["-e", "MESOS_DIRECTORY=/mesos-sandbox"])
 
@@ -129,20 +139,66 @@ def launch():
             if key in os.environ:
                 arguments.extend(["-e", "%s=%s" % (key, os.environ[key])])
 
-        # Parse the container image
-        image = None
-        extra_args = []
-        if launch.HasField("executor_info"):
-            image = launch.executor_info.command.container.image
-            for option in launch.executor_info.command.container.options:
-                extra_args.extend(option.split(" "))
-        else:
-            image = launch.task_info.command.container.image
-            for option in launch.task_info.command.container.options:
-                extra_args.extend(option.split(" "))
+        # Add the sandbox directory
+        arguments.extend(["-v", "%s:/mesos-sandbox" % (launch.directory)])
+        arguments.extend(["-w", "/mesos-sandbox"])
 
-        # Replace any environment variables in the custom args
-        extra_args = map(lambda s: s.replace('$MESOS_DIRECTORY', launch.directory), extra_args)
+        # Populate the docker arguments with any volumes to be mounted
+        if container_info:
+            for volume in container_info.volumes:
+                volume_args = volume.container_path
+                if volume.HasField("host_path"):
+                    volume_args = "%s:%s" % (
+                        volume.host_path,
+                        volume.container_path
+                    )
+                if volume.HasField("mode"):
+                    if not volume.HasField("host_path"):
+                        logger.error("Host path is required with mode")
+                        exit(1)
+                    if volume.mode == Volume.Mode.RW:
+                        volume_args += ":rw"
+                    elif volume.mode == Volume.Mode.RO:
+                        volume_args += ":ro"
+                    else:
+                        logger.error("Unsupported volume mode")
+                        exit(1)
+
+                arguments.extend(["-v", volume_args])
+
+        # Populate the docker arguments with any port mappings
+        if docker_info:
+            for port_mapping in docker_info.port_mappings:
+                if port_mapping.host_port not in ports:
+                    logger.error("Port %i not included in resources",
+                                 port_mapping.host_port)
+                    exit(1)
+                port_args = "%i:%i" % (
+                    port_mapping.host_port,
+                    port_mapping.container_port
+                )
+
+                if port_mapping.HasField("protocol"):
+                    port_args += "/%s" % (port_mapping.protocol.lower())
+
+                arguments.extend(["-p", port_args])
+
+        # TODO (0.21.0) Support privileged in DockerInfo
+        # TODO (0.21.0) Support parameters in DockerInfo
+
+        if docker_info:
+            image = docker_info.image
+        else:
+            image = None
+            extra_args = []
+            if launch.HasField("executor_info"):
+                image = launch.executor_info.command.container.image
+                for option in launch.executor_info.command.container.options:
+                    extra_args.extend(option.split(" "))
+            else:
+                image = launch.task_info.command.container.image
+                for option in launch.task_info.command.container.options:
+                    extra_args.extend(option.split(" "))
 
         if not image:
             image = os.environ["MESOS_DEFAULT_CONTAINER_IMAGE"]
@@ -150,20 +206,19 @@ def launch():
             logger.error("No default container image")
             exit(1)
 
+        # Parse the container image
         url = urlparse(image)
-        image = ""
         if url.netloc:
-            image = url.netloc
-        image += url.path
+            docker_image = "%s/%s" % (url.netloc, url.path)
+        else:
+            docker_image = url.path
 
         # Pull the image
-        logger.info("Pulling latest docker image: %s", image)
-        _, _, return_code = invoke_docker("pull", [image])
+        logger.info("Pulling latest docker image: %s", docker_image)
+        _, _, return_code = invoke_docker("pull", [docker_image])
         if return_code > 0:
             logger.error("Failed to pull image (%d)", return_code)
             exit(1)
-
-        # TODO(tarnfeld): Locking
 
         run_arguments = [
             "-d",  # Enable daemon mode
@@ -171,7 +226,7 @@ def launch():
 
         run_arguments.extend(arguments)
         run_arguments.extend(extra_args)
-        run_arguments.append(image)
+        run_arguments.append(docker_image)
         run_arguments.extend(["sh", "-c"])
         run_arguments.append(executor + " >> /mesos-sandbox/docker_stdout 2>> /mesos-sandbox/docker_stderr")
 

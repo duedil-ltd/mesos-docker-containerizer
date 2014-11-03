@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @app.command()
 def containers():
     """
-    List all running containers. Dumps out the containerizer.Containers proto
+    List all running containers. Dumps out the containerizer. Containers proto
     which lists all of the container IDs.
     """
 

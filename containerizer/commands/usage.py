@@ -6,7 +6,7 @@
  \__,_|___/\__,_|\__, |\___|
                  |___/
 
-Containerizer subcommand to retreive resource usage information from a
+Containerizer subcommand to retrieve resource usage information from a
 running container.
 """
 
