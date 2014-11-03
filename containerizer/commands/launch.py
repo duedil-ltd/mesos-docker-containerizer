@@ -14,7 +14,7 @@ from urlparse import urlparse
 
 from containerizer import app, recv_proto, container_lock
 from containerizer.docker import invoke_docker
-from containerizer.proto import Launch, ContainerInfo, Volume
+from containerizer.proto import Launch
 from containerizer.fetcher import fetch_uris
 
 logger = logging.getLogger(__name__)
@@ -69,18 +69,29 @@ def launch():
                     "%s=%s" % (env.name, env.value)
                 ])
 
-            if launch.task_info.HasField("container"):
-                container_info = launch.task_info.container
+        # Pull out the ContainerInfo from either the task or the executor
+        if launch.executor_info.HasField("container"):
+            container_info = launch.executor_info.container
+        elif launch.task_info.HasField("container"):
+            container_info = launch.task_info.container
 
         # Pull out DockerInfo if it's there
         docker_info = None
-        if container_info and container_info.type == ContainerInfo.Type.DOCKER:
+        if container_info and container_info.type == 1:  # ContainerInfo.Type.DOCKER
             docker_info = container_info.docker
 
         # Configure the docker network to share the hosts
         net = "host"
         if docker_info:
-            net = ContainerInfo.DockerInfo._Network.values_by_number[docker_info.network].name
+            if docker_info.network == 1:  # DockerInfo.Network.HOST
+                pass
+            elif docker_info.network == 2:  # DockerInfo.Network.BRIDGE
+                net = "bridge"
+            elif docker_info.network == 3:  # DockerInfo.Network.NONE
+                net = "none"
+            else:
+                logger.error("Unsupported docker network type")
+                exit(1)
 
         arguments.extend([
             "--net=%s" % net.lower()
