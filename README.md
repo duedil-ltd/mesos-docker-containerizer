@@ -1,5 +1,7 @@
 ## Docker Containerizer for Mesos
 
+[![Build Status](https://travis-ci.org/duedil-ltd/mesos-docker-containerizer.svg?branch=master)](https://travis-ci.org/duedil-ltd/mesos-docker-containerizer)
+
 This project is an implementation of an External Containerizer for [Apache Mesos](http://mesos.apache.org/), that allows Mesos Executors/Tasks to be launched inside a Docker container. This is especially useful as a mechanism for managing system dependencies, since you no longer need to ensure all of the Mesos slaves have everything installed.
 
 This containerizer supports both the historic [`CommandInfo.ContainerInfo`](https://github.com/apache/mesos/blob/0.20.1/include/mesos/mesos.proto#L209-L228) protobuf message and the new root [`ContainerInfo`](https://github.com/apache/mesos/blob/0.20.1/include/mesos/mesos.proto#L849-L881) message. Effectively this containerizer can also be used in conjunction with the built-in mesos/docker containerizer released in 0.20.0.
