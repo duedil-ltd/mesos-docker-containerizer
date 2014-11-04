@@ -109,7 +109,7 @@ def build_docker_args(launch):
             raise Exception("Unsupported docker network type")
 
     arguments.extend([
-        "--net=%s" % net.lower()
+        "--net", "%s" % net.lower()
     ])
 
     # Configure the user
@@ -134,7 +134,7 @@ def build_docker_args(launch):
     for resources in resource_sets:
         for resource in resources:
             if resource.name == "cpus":
-                cpu_shares += int(resource.scalar.value)
+                cpu_shares += float(resource.scalar.value)
             if resource.name == "mem":
                 max_memory += int(resource.scalar.value)
             if resource.name == "ports":
@@ -142,8 +142,8 @@ def build_docker_args(launch):
                     for port in xrange(port_range.begin, port_range.end + 1):
                         ports.add(port)
 
-    if cpu_shares > 0:
-        arguments.extend(["-c", str(cpu_shares * 256)])
+    if cpu_shares > 0.0:
+        arguments.extend(["-c", str(int(cpu_shares * 256))])
     if max_memory > 0:
         arguments.extend(["-m", "%dm" % max_memory])
     if len(ports) > 0:
@@ -179,15 +179,13 @@ def build_docker_args(launch):
                 )
             if volume.HasField("mode"):
                 if not volume.HasField("host_path"):
-                    logger.error("Host path is required with mode")
-                    exit(1)
+                    raise Exception("Host path is required with mode")
                 if volume.mode == Volume.Mode.RW:
                     volume_args += ":rw"
                 elif volume.mode == Volume.Mode.RO:
                     volume_args += ":ro"
                 else:
-                    logger.error("Unsupported volume mode")
-                    exit(1)
+                    raise Exception("Unsupported volume mode")
 
             arguments.extend(["-v", volume_args])
 
@@ -195,9 +193,7 @@ def build_docker_args(launch):
     if docker_info:
         for port_mapping in docker_info.port_mappings:
             if port_mapping.host_port not in ports:
-                logger.error("Port %i not included in resources",
-                             port_mapping.host_port)
-                exit(1)
+                raise Exception("Port %i not included in resources" % port_mapping.host_port)
             port_args = "%i:%i" % (
                 port_mapping.host_port,
                 port_mapping.container_port
@@ -211,11 +207,11 @@ def build_docker_args(launch):
     # TODO (0.21.0) Support privileged in DockerInfo
     # TODO (0.21.0) Support parameters in DockerInfo
 
+    extra_args = []
     if docker_info:
         image = docker_info.image
     else:
         image = None
-        extra_args = []
         if launch.HasField("executor_info"):
             image = launch.executor_info.command.container.image
             for option in launch.executor_info.command.container.options:
