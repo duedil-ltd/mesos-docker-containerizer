@@ -33,7 +33,11 @@ def launch():
 
         logger.info("Preparing to launch container %s", launch.container_id.value)
 
-        build_docker_args(launch)
+        try:
+            build_docker_args(launch)
+        except Exception, e:
+            logger.error("Caught exception: %s", e)
+            raise  # Re-raise the exception
 
         logger.info("Launching docker container")
         _, _, return_code = invoke_docker("run", run_arguments)
@@ -102,8 +106,7 @@ def build_docker_args(launch):
         elif docker_info.network == 3:  # DockerInfo.Network.NONE
             net = "none"
         else:
-            logger.error("Unsupported docker network type")
-            exit(1)
+            raise Exception("Unsupported docker network type")
 
     arguments.extend([
         "--net=%s" % net.lower()
@@ -118,8 +121,7 @@ def build_docker_args(launch):
     # Download the URIs
     logger.info("Fetching URIs")
     if fetch_uris(launch.directory, uris) > 0:
-        logger.error("Mesos fetcher returned bad exit code")
-        exit(1)
+        raise Exception("Mesos fetcher returned bad exit code")
 
     # Set the resource configuration
     cpu_shares = 0
@@ -226,8 +228,7 @@ def build_docker_args(launch):
     if not image:
         image = os.environ["MESOS_DEFAULT_CONTAINER_IMAGE"]
     if not image:
-        logger.error("No default container image")
-        exit(1)
+        raise Exception("No default container image")
 
     # Parse the container image
     url = urlparse(image)
@@ -240,8 +241,7 @@ def build_docker_args(launch):
     logger.info("Pulling latest docker image: %s", docker_image)
     _, _, return_code = invoke_docker("pull", [docker_image])
     if return_code > 0:
-        logger.error("Failed to pull image (%d)", return_code)
-        exit(1)
+        raise Exception("Failed to pull image (%d)", return_code)
 
     run_arguments = [
         "-d",  # Enable daemon mode
