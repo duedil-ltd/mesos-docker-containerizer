@@ -27,44 +27,47 @@ def update():
 
     update = recv_proto(Update)
 
+    logger.info("Updating resources for container %s", update.container_id.value)
     with container_lock(update.container_id.value, "update"):
+        update_container(update.container_id, update.resources)
 
-        logger.info("Updating resources for container %s", update.container_id.value)
 
-        # Get the container ID
-        info = inspect_container(update.container_id.value)
-        lxc_container_id = info.get("ID", info.get("Id"))
+def update_container(container_id, resources):
 
-        if lxc_container_id is None:
-            raise Exception("Failed to get full container ID")
+    # Get the container ID
+    info = inspect_container(update.container_id.value)
+    lxc_container_id = info.get("ID", info.get("Id"))
 
-        # Gather the resoures
-        max_mem = None
-        max_cpus = None
+    if lxc_container_id is None:
+        raise Exception("Failed to get full container ID")
 
-        for resource in update.resources:
-            if resource.name == "mem":
-                max_mem = int(resource.scalar.value) * 1024 * 1024
-            if resource.name == "cpus":
-                max_cpus = int(resource.scalar.value) * 256
-            if resource.name == "ports":
-                logger.error("Unable to process an update to port configuration!")
+    # Gather the resoures
+    max_mem = None
+    max_cpus = None
 
-        if max_mem:
-            # Update the soft limit
-            write_metric(lxc_container_id, "memory.soft_limit_in_bytes", max_mem)
+    for resource in update.resources:
+        if resource.name == "mem":
+            max_mem = int(resource.scalar.value) * 1024 * 1024
+        if resource.name == "cpus":
+            max_cpus = int(resource.scalar.value) * 256
+        if resource.name == "ports":
+            logger.error("Unable to process an update to port configuration!")
 
-            # Figure out if we can update the hard limit
-            # If we reduce the hard limit and too much memory is in use, this
-            # can invoke an OOM.
-            current_mem = int(read_metric(lxc_container_id, "memory.limit_in_bytes"))
-            if current_mem > max_mem:
-                write_metric(lxc_container_id, "memory.limit_in_bytes", max_mem)
-            else:
-                logger.info("Skipping hard memory limit, would invoke OOM")
+    if max_mem:
+        # Update the soft limit
+        write_metric(lxc_container_id, "memory.soft_limit_in_bytes", max_mem)
 
-        if max_cpus:
-            shares = max_cpus * 256
-            write_metric(lxc_container_id, "cpu.shares", shares)
+        # Figure out if we can update the hard limit
+        # If we reduce the hard limit and too much memory is in use, this
+        # can invoke an OOM.
+        current_mem = int(read_metric(lxc_container_id, "memory.limit_in_bytes"))
+        if current_mem > max_mem:
+            write_metric(lxc_container_id, "memory.limit_in_bytes", max_mem)
+        else:
+            logger.info("Skipping hard memory limit, would invoke OOM")
 
-        logger.info("Finished processing container update")
+    if max_cpus:
+        shares = max_cpus * 256
+        write_metric(lxc_container_id, "cpu.shares", shares)
+
+    logger.info("Finished processing container update")

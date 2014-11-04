@@ -28,17 +28,26 @@ def destroy():
 
     # Acquire a lock for this container
     with container_lock(destroy.container_id.value):
+        success = destroy_container(destroy.container_id)
 
-        logger.info("Ensuring container %s is killed", destroy.container_id.value)
+    if not success:
+        exit(1)
 
-        stdout, _, return_code = invoke_docker("kill", [destroy.container_id.value], stdout=PIPE)
-        if return_code > 0:
-            logger.error("Failed to kill container, bad exit code (%d)", return_code)
-            exit(1)
 
-        logger.info("Removing container %s", destroy.container_id.value)
+def destroy_container(container_id):
 
-        stdout, _, return_code = invoke_docker("rm", [destroy.container_id.value], stdout=PIPE)
-        if return_code > 0:
-            logger.error("Failed to remove container, bad exit code (%d)", return_code)
-            exit(1)
+    logger.info("Ensuring container %s is killed", container_id.value)
+
+    stdout, _, return_code = invoke_docker("kill", [container_id.value], stdout=PIPE)
+    if return_code > 0:
+        logger.error("Failed to kill container, bad exit code (%d)", return_code)
+        return False
+
+    logger.info("Removing container %s", container_id.value)
+
+    stdout, _, return_code = invoke_docker("rm", [container_id.value], stdout=PIPE)
+    if return_code > 0:
+        logger.error("Failed to remove container, bad exit code (%d)", return_code)
+        return False
+
+    return True

@@ -5,4 +5,8 @@ DOT := \033[34m●\033[39m
 TICK := \033[32m✔\033[39m
 
 clean-py:
-	find ./containerizer -name "*.py[co]" -exec rm {} \;
+	@find ./containerizer -name "*.py[co]" -exec rm {} \;
+
+test:
+	@bin/setup
+	@PYTHONPATH=. bin/env/bin/nosetests --with-doctest ./tests/**

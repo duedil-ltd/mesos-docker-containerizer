@@ -8,7 +8,6 @@
 Containerizer subcommand to perform any internal recovery operations.
 """
 
-import sys
 import logging
 
 from containerizer import app
