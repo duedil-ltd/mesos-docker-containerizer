@@ -1,0 +1,4 @@
+notifications:
+  email: false
+language: python
+script: "make test"
