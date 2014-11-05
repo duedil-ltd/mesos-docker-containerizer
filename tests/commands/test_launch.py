@@ -178,6 +178,28 @@ class LaunchContainerTestCase(TestCase):
             "/bin/mesos-executor >> /mesos-sandbox/docker_stdout 2>> /mesos-sandbox/docker_stderr"
         ])
 
+    def test_launch_container_task_info_command_container_info(self, _, __):
+
+        launch = Launch()
+        launch.container_id.value = "container-foo-bar"
+        launch.directory = "/tmp"
+        launch.user = "test"
+
+        launch.task_info.command.container.image = "custom/image"
+
+        self.assertEqual(build_docker_args(launch), [
+            "-d",
+            "--name", "container-foo-bar",
+            "--net", "host",
+            "-u", "test",
+            "-e", "MESOS_DIRECTORY=/mesos-sandbox",
+            "-v", "/tmp:/mesos-sandbox",
+            "-w", "/mesos-sandbox",
+            "custom/image",
+            "sh", "-c",
+            "/bin/mesos-executor >> /mesos-sandbox/docker_stdout 2>> /mesos-sandbox/docker_stderr"
+        ])
+
     def test_launch_container_executor_info(self, _, __):
 
         launch = Launch()
