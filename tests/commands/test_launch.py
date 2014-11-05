@@ -177,3 +177,106 @@ class LaunchContainerTestCase(TestCase):
             "sh", "-c",
             "/bin/mesos-executor >> /mesos-sandbox/docker_stdout 2>> /mesos-sandbox/docker_stderr"
         ])
+
+    def test_launch_container_executor_info(self, _, __):
+
+        launch = Launch()
+        launch.container_id.value = "container-foo-bar"
+        launch.directory = "/tmp"
+        launch.user = "test"
+
+        launch.executor_info.command.value = 'bin/foo-bar'
+        launch.executor_info.command.arguments.append('baz')
+
+        self.assertEqual(build_docker_args(launch), [
+            "-d",
+            "--name", "container-foo-bar",
+            "--net", "host",
+            "-u", "test",
+            "-e", "MESOS_DIRECTORY=/mesos-sandbox",
+            "-v", "/tmp:/mesos-sandbox",
+            "-w", "/mesos-sandbox",
+            "default/container",
+            "sh", "-c",
+            "bin/foo-bar >> /mesos-sandbox/docker_stdout 2>> /mesos-sandbox/docker_stderr"
+        ])
+
+    def test_launch_container_executor_info_no_shell(self, _, __):
+        self.skipTest("The `shell` option is not fully implemented")
+
+        launch = Launch()
+        launch.container_id.value = "container-foo-bar"
+        launch.directory = "/tmp"
+        launch.user = "test"
+
+        launch.executor_info.command.value = 'bin/foo-bar'
+        launch.executor_info.command.shell = False
+        launch.executor_info.command.arguments.append('baz')
+
+        self.assertEqual(build_docker_args(launch), [
+            "-d",
+            "--name", "container-foo-bar",
+            "--net", "host",
+            "-u", "test",
+            "-e", "MESOS_DIRECTORY=/mesos-sandbox",
+            "-v", "/tmp:/mesos-sandbox",
+            "-w", "/mesos-sandbox",
+            "default/container",
+            "sh", "-c",
+            "bin/foo-bar baz >> /mesos-sandbox/docker_stdout 2>> /mesos-sandbox/docker_stderr"
+        ])
+
+    def test_launch_container_executor_info_task_info_container_info(self, _, __):
+
+        launch = Launch()
+        launch.container_id.value = "container-foo-bar"
+        launch.directory = "/tmp"
+        launch.user = "test"
+
+        launch.task_info.container.type = 1  # DOCKER
+        launch.task_info.container.docker.image = "custom/image"
+        launch.task_info.container.docker.network = 2
+
+        launch.executor_info.command.value = 'bin/foo-bar'
+
+        self.assertEqual(build_docker_args(launch), [
+            "-d",
+            "--name", "container-foo-bar",
+            "--net", "bridge",
+            "-u", "test",
+            "-e", "MESOS_DIRECTORY=/mesos-sandbox",
+            "-v", "/tmp:/mesos-sandbox",
+            "-w", "/mesos-sandbox",
+            "custom/image",
+            "sh", "-c",
+            "bin/foo-bar >> /mesos-sandbox/docker_stdout 2>> /mesos-sandbox/docker_stderr"
+        ])
+
+    def test_launch_container_executor_info_task_info_container_info_overlap(self, _, __):
+
+        launch = Launch()
+        launch.container_id.value = "container-foo-bar"
+        launch.directory = "/tmp"
+        launch.user = "test"
+
+        launch.task_info.container.type = 1  # DOCKER
+        launch.task_info.container.docker.image = "custom/image"
+        launch.task_info.container.docker.network = 2
+
+        launch.executor_info.command.value = 'bin/foo-bar'
+
+        launch.executor_info.container.type = 1  # DOCKER
+        launch.executor_info.container.docker.image = "custom/executor"
+
+        self.assertEqual(build_docker_args(launch), [
+            "-d",
+            "--name", "container-foo-bar",
+            "--net", "host",
+            "-u", "test",
+            "-e", "MESOS_DIRECTORY=/mesos-sandbox",
+            "-v", "/tmp:/mesos-sandbox",
+            "-w", "/mesos-sandbox",
+            "custom/executor",
+            "sh", "-c",
+            "bin/foo-bar >> /mesos-sandbox/docker_stdout 2>> /mesos-sandbox/docker_stderr"
+        ])
