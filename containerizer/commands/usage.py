@@ -6,7 +6,7 @@
  \__,_|___/\__,_|\__, |\___|
                  |___/
 
-Containerizer subcommand to retreive resource usage information from a
+Containerizer subcommand to retrieve resource usage information from a
 running container.
 """
 
@@ -49,18 +49,29 @@ def usage():
         logger.error("Unable to retrieve number of CPU clock ticks")
         exit(1)
 
+    collect_container_stats(lxc_container_id, stats, ticks)
+
+    logger.debug("Container usage: %s", stats)
+
+    # Send the stats back to mesos
+    send_proto(stats)
+
+
+def collect_container_stats(container_id, stats, cpu_ticks):
+
     # Retrieve the CPU stats
     try:
-        stats.cpus_limit = float(read_metric(lxc_container_id, "cpu.shares")) / 256
-        cpu_stats = dict(read_metrics(lxc_container_id, "cpuacct.stat"))
+        stats.cpus_limit = float(read_metric(container_id, "cpu.shares")) / 256
+        cpu_stats = dict(read_metrics(container_id, "cpuacct.stat"))
         if "user" in cpu_stats and "system" in cpu_stats:
-            stats.cpus_user_time_secs = float(cpu_stats["user"]) / ticks
-            stats.cpus_system_time_secs = float(cpu_stats["system"]) / ticks
+            stats.cpus_user_time_secs = float(cpu_stats["user"]) / cpu_ticks
+            stats.cpus_system_time_secs = float(cpu_stats["system"]) / cpu_ticks
     except:
+        raise
         logger.error("Failed to get CPU usage")
 
     try:
-        cpu_stats = dict(read_metrics(lxc_container_id, "cpu.stat"))
+        cpu_stats = dict(read_metrics(container_id, "cpu.stat"))
         if "nr_periods" in cpu_stats:
             stats.cpus_nr_periods = int(cpu_stats["nr_periods"])
         if "nr_throttled" in cpu_stats:
@@ -74,13 +85,13 @@ def usage():
 
     # Retrieve the mem stats
     try:
-        stats.mem_limit_bytes = int(read_metric(lxc_container_id, "memory.limit_in_bytes"))
-        stats.mem_rss_bytes = int(read_metric(lxc_container_id, "memory.usage_in_bytes"))
+        stats.mem_limit_bytes = int(read_metric(container_id, "memory.limit_in_bytes"))
+        stats.mem_rss_bytes = int(read_metric(container_id, "memory.usage_in_bytes"))
     except:
         logger.error("Failed to get memory usage")
 
     try:
-        mem_stats = dict(read_metrics(lxc_container_id, "memory.stat"))
+        mem_stats = dict(read_metrics(container_id, "memory.stat"))
         if "total_cache" in mem_stats:
             stats.mem_file_bytes = int(mem_stats["total_cache"])
         if "total_rss" in mem_stats:
@@ -90,7 +101,4 @@ def usage():
     except:
         logger.error("Failed to get detailed memory usage")
 
-    logger.debug("Container usage: %s", stats)
-
-    # Send the stats back to mesos
-    send_proto(stats)
+    return stats

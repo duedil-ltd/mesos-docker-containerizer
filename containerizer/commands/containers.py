@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @app.command()
 def containers():
     """
-    List all running containers. Dumps out the containerizer.Containers proto
+    List all running containers. Dumps out the a Containers proto
     which lists all of the container IDs.
     """
 
@@ -29,10 +29,14 @@ def containers():
         logger.error("Docker returned a bad status code (%d)" % exit_code)
         exit(1)
 
+    send_proto(parse_docker_ps(stdout))
+
+
+def parse_docker_ps(stream):
     running_containers = Containers()
 
-    stdout.readline() # Read off the header
-    for line in stdout:
+    stream.readline()  # Read off the header
+    for line in stream:
         container_id = line.rstrip().split(" ")[-1]
 
         if len(container_id) > 0:
@@ -42,4 +46,4 @@ def containers():
             logger.error("Failed to parse container id, empty")
             exit(1)
 
-    send_proto(running_containers)
+    return running_containers
