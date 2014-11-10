@@ -34,7 +34,7 @@ def launch():
         logger.info("Preparing to launch container %s", launch.container_id.value)
 
         try:
-            build_docker_args(launch)
+            run_arguments = build_docker_args(launch)
         except Exception, e:
             logger.error("Caught exception: %s", e)
             raise  # Re-raise the exception
