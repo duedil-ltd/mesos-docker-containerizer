@@ -229,7 +229,7 @@ def build_docker_args(launch):
     # Parse the container image
     url = urlparse(image)
     if url.netloc:
-        docker_image = "%s/%s" % (url.netloc, url.path)
+        docker_image = "%s/%s" % (url.netloc, url.path.lstrip("/"))
     else:
         docker_image = url.path
 

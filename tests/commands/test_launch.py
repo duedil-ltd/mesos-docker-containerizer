@@ -302,3 +302,26 @@ class LaunchContainerTestCase(TestCase):
             "sh", "-c",
             "bin/foo-bar >> /mesos-sandbox/docker_stdout 2>> /mesos-sandbox/docker_stderr"
         ])
+
+    def test_launch_container_task_info_docker_registry(self, _, __):
+
+        launch = Launch()
+        launch.container_id.value = "container-foo-bar"
+        launch.directory = "/tmp"
+        launch.user = "test"
+
+        launch.task_info.container.type = 1  # DOCKER
+        launch.task_info.container.docker.image = "docker://my-registry.net/custom/image"
+
+        self.assertEqual(build_docker_args(launch), [
+            "-d",
+            "--name", "container-foo-bar",
+            "--net", "host",
+            "-u", "test",
+            "-e", "MESOS_DIRECTORY=/mesos-sandbox",
+            "-v", "/tmp:/mesos-sandbox",
+            "-w", "/mesos-sandbox",
+            "my-registry.net/custom/image",
+            "sh", "-c",
+            "/bin/mesos-executor >> /mesos-sandbox/docker_stdout 2>> /mesos-sandbox/docker_stderr"
+        ])
