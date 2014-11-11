@@ -35,7 +35,7 @@ def update():
 def update_container(container_id, resources):
 
     # Get the container ID
-    info = inspect_container(update.container_id.value)
+    info = inspect_container(container_id)
     lxc_container_id = info.get("ID", info.get("Id"))
 
     if lxc_container_id is None:
