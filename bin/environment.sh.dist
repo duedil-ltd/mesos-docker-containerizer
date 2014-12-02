@@ -3,3 +3,8 @@
 # CONTAINERIZER_DOCKER_ARGS: Any extra options to pass to `docker` before the command
 # This is a great place to use the -H host argument.
 export CONTAINERIZER_DOCKER_ARGS=""
+
+# MESOS_NATIVE_LIBRARY: Override the MESOS_NATIVE_LIBRARY environment variable
+# set by the mesos-slave process for your containers. This is very useful if
+# your containers have libmesos installed in a different path to the slave.
+# export MESOS_NATIVE_LIBRARY="/usr/local/lib/libmesos.so"
