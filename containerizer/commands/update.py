@@ -45,7 +45,7 @@ def update_container(container_id, resources):
     max_mem = None
     max_cpus = None
 
-    for resource in update.resources:
+    for resource in resources:
         if resource.name == "mem":
             max_mem = int(resource.scalar.value) * 1024 * 1024
         if resource.name == "cpus":
