@@ -29,7 +29,7 @@ def update():
 
     logger.info("Updating resources for container %s", update.container_id.value)
     with container_lock(update.container_id.value, "update"):
-        update_container(update.container_id, update.resources)
+        update_container(update.container_id.value, update.resources)
 
 
 def update_container(container_id, resources):
