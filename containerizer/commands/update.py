@@ -61,7 +61,7 @@ def update_container(container_id, resources):
         # If we reduce the hard limit and too much memory is in use, this
         # can invoke an OOM.
         current_mem = int(read_metric(lxc_container_id, "memory.limit_in_bytes"))
-        if current_mem > max_mem:
+        if current_mem < max_mem:
             write_metric(lxc_container_id, "memory.limit_in_bytes", max_mem)
         else:
             logger.info("Skipping hard memory limit, would invoke OOM")
