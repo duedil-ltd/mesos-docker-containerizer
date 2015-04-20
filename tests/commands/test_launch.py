@@ -67,7 +67,7 @@ class LaunchContainerTestCase(TestCase):
             "--name", "container-foo-bar",
             "--net", "host",
             "-u", "test",
-            "-c", "256",
+            "-c", "1024",
             "-m", "1024m",
             "-p", ":4400",
             "-p", ":4401",
