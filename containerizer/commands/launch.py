@@ -143,7 +143,7 @@ def build_docker_args(launch):
                         ports.add(port)
 
     if cpu_shares > 0.0:
-        arguments.extend(["-c", str(int(cpu_shares * 256))])
+        arguments.extend(["-c", str(int(cpu_shares * 1024))])
     if max_memory > 0:
         arguments.extend(["-m", "%dm" % max_memory])
     if len(ports) > 0:

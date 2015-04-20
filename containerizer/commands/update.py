@@ -49,7 +49,7 @@ def update_container(container_id, resources):
         if resource.name == "mem":
             max_mem = int(resource.scalar.value) * 1024 * 1024
         if resource.name == "cpus":
-            max_cpus = int(resource.scalar.value) * 256
+            max_cpus = int(resource.scalar.value) * 1024
         if resource.name == "ports":
             logger.error("Unable to process an update to port configuration!")
 
@@ -61,13 +61,13 @@ def update_container(container_id, resources):
         # If we reduce the hard limit and too much memory is in use, this
         # can invoke an OOM.
         current_mem = int(read_metric(lxc_container_id, "memory.limit_in_bytes"))
-        if current_mem > max_mem:
+        if current_mem < max_mem:
             write_metric(lxc_container_id, "memory.limit_in_bytes", max_mem)
         else:
             logger.info("Skipping hard memory limit, would invoke OOM")
 
     if max_cpus:
-        shares = max_cpus * 256
+        shares = max_cpus * 1024
         write_metric(lxc_container_id, "cpu.shares", shares)
 
     logger.info("Finished processing container update")
