@@ -204,8 +204,15 @@ def build_docker_args(launch):
 
             arguments.extend(["-p", port_args])
 
-    # TODO (0.21.0) Support privileged in DockerInfo
-    # TODO (0.21.0) Support parameters in DockerInfo
+        if docker_info.privileged:
+            arguments.append('--privileged')
+
+        if docker_info.parameters:
+            for param in docker_info.parameters:
+                if param.key:
+                    arguments.append(param.key)
+                if param.value:
+                    arguments.append(param.value)
 
     extra_args = []
     if docker_info:

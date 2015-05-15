@@ -2,37 +2,36 @@
 # vi: set ft=ruby :
 
 # Install docker
-$docker_setup = <<SCRIPT
+$setup = <<SCRIPT
 set -e
 
+# Add docker apt repository
 wget -q -O - https://get.docker.io/gpg | sudo apt-key add -
 sudo bash -c "echo 'deb http://get.docker.io/ubuntu docker main' > /etc/apt/sources.list.d/docker.list"
+
+# Add mesosphere apt repository
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF
+echo "deb http://repos.mesosphere.io/ubuntu precise main" | \
+  sudo tee /etc/apt/sources.list.d/mesosphere.list
+
+sudo apt-get -y update
 sudo apt-get update -q
-sudo apt-get install -q -y lxc-docker
+sudo apt-get install -q -y \
+  htop \
+  python-virtualenv \
+  lxc-docker-1.3.0 \
+  mesos=0.21.0-1.0.ubuntu1204
+
+# easymode for docker use as vagrant user
 sudo usermod -a -G docker vagrant
-SCRIPT
 
-# Install mesos
-$mesos_setup = <<SCRIPT
-set -e
-
-sudo apt-get install -y zookeeperd default-jre python-setuptools python-protobuf curl
-curl -sSfL http://downloads.mesosphere.io/master/ubuntu/12.04/mesos_0.19.0-rc2~ubuntu12.04%2B1_amd64.deb --output /tmp/mesos.deb
-sudo dpkg -i /tmp/mesos.deb
 sudo rm /etc/init/mesos-*
-SCRIPT
-
-# Other dependencies
-$conainerizer_deps = <<SCRIPT
-set -e
-
-sudo apt-get install -y htop python-virtualenv
 SCRIPT
 
 Vagrant.configure("2") do |config|
 
   # Use the base ubuntu box
-  config.vm.box = "ubuntu"
+  config.vm.box = "phusion/ubuntu-14.04-amd64"
 
   # Create a private network, which allows host-only access to the machine
   # using a specific IP.
@@ -40,16 +39,14 @@ Vagrant.configure("2") do |config|
 
   # Share the containerizer source into the VM
   config.vm.synced_folder "../", "/opt/mesos-docker-containerizer"
-  config.vm.synced_folder "../../jenkins-mesos", "/opt/jenkins"
 
   # Configure the VM with 1024Mb of RAM and 2 CPUs
   config.vm.provider :virtualbox do |vb|
     vb.customize ["modifyvm", :id, "--memory", "1024"]
     vb.customize ["modifyvm", :id, "--cpus", "2"]
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
   end
 
   # Install all the things!
-  config.vm.provision "shell", inline: $docker_setup
-  config.vm.provision "shell", inline: $mesos_setup
-  config.vm.provision "shell", inline: $conainerizer_deps
+  config.vm.provision "shell", inline: $setup
 end

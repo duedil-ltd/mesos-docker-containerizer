@@ -39,7 +39,7 @@ With the above slave, any tasks that are sent to the slave *must* contain contai
 The `./example` folder contains a `Vagrantfile` that launches a vagrant VM ready and waiting for testing the containerizer.
 
 - Installs docker
-- Downloads and compiles mesos (at the right version) into `/opt/mesos`
-- Includes the containerizer code into `/opt/mesos-docker-containerizer`
+- Installs mesos 0.21 fromthe mesosphere apt repository. `mesos-master` and `mesos-slave` will be availble on your path.
+- Mounts this repo into `/opt/mesos-docker-containerizer`
 
-The VM doesn't launch a running mesos master or slave, you'll need to log in via `vagrant ssh` and use the `/opt/mesos/build/bin/*` tools to do that yourself.
+The VM doesn't launch a running mesos master or slave, you'll need to log in via `vagrant ssh` and use `mesos-master` and `mesos-slave` with appropriate arguments to do that yourself.
