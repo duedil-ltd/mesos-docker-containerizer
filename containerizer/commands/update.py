@@ -49,7 +49,7 @@ def update_container(container_id, resources):
         if resource.name == "mem":
             max_mem = int(resource.scalar.value) * 1024 * 1024
         if resource.name == "cpus":
-            max_cpus = int(resource.scalar.value) * 1024
+            max_cpus = int(resource.scalar.value)
         if resource.name == "ports":
             logger.error("Unable to process an update to port configuration!")
 
